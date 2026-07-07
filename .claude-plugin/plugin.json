@@ -10,8 +10,8 @@
   "repository": "https://github.com/Youcean713/claude_config",
   "license": "MIT",
   "keywords": ["audit", "security", "code-review", "multi-agent", "owasp", "compliance"],
-  "skills": "./",
-  "agents": "./agents/",
-  "commands": "./commands/",
+  "skills": ["./"],
+  "agents": ["./agents/lens-security.md", "./agents/lens-architecture.md", "./agents/lens-quality.md", "./agents/lens-performance.md", "./agents/lens-perspective.md", "./agents/merge-reviewer.md", "./agents/verifier.md", "./agents/perspective-recommender.md", "./agents/code-auditor.md"],
+  "commands": ["./commands/audit.md", "./commands/full.md", "./commands/simple.md"],
   "hooks": ["./hooks/hooks.json"]
 }
