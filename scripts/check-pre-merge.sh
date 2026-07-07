@@ -39,7 +39,8 @@ try:
     print(len(findings))
 except Exception as e:
     print('ERROR:' + str(e))
-")
+PYEOF
+)
             if [ "$findings_count" = "0" ]; then
                 printf '%s\n' "⚠️  lens-$lens.json: findings 为空（透镜未产出发现或执行失败）"
             elif [[ "$findings_count" == ERROR* ]]; then

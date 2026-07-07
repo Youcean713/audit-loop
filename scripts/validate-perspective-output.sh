@@ -95,15 +95,12 @@ if len(perspectives) == 0:
     print('❌ 拒绝: recommended_perspectives 为空数组（perspective-recommender 可能被注入操纵或返回异常结构）')
     sys.exit(1)
 
-# 额外结构检查: 验证预期顶层字段存在
+# 额外结构检查: 验证预期顶层字段存在 (C-4 fail-closed)
 required_top_fields = ['project_type', 'detected_signals', 'recommended_perspectives']
-for field in required_top_fields:
-    if field not in data:
-        failures.append(f'顶层字段缺失: {field}')
-
-# 若有结构性问题 → fail-closed
-if [f for f in [field not in data for field in required_top_fields] if f]:
-    pass  # failures already appended above
+missing_fields = [field for field in required_top_fields if field not in data]
+if missing_fields:
+    print(f'❌ 拒绝: 顶层字段缺失: {missing_fields}')
+    sys.exit(1)
 
 print(f'检查 {len(perspectives)} 个推荐视角')
 

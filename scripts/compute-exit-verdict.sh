@@ -33,6 +33,16 @@ if [ ! -d "$INSTANCE_DIR" ]; then
     exit 4  # H-7: IO_ERROR
 fi
 
+# AP-14 fix: 退出裁决前强制检查所有 Medium 已处理（fix_attempted/requires_human/overridable）
+# 防止编排者在 C+H=0 时直接产出报告而跳过 Medium 修复
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "${INSTANCE_DIR}/checklist-round-1.json" ]; then
+    if ! bash "${SCRIPT_DIR}/enforce-medium-handled.sh" "$INSTANCE_DIR"; then
+        printf '%s\n' "❌ 退出裁决被阻止（AP-14）：请先处理上述 Medium 问题（修复或标记 requires_human），再重跑退出裁决" >&2
+        exit 2
+    fi
+fi
+
 echo "=== audit-loop 退出裁决 ==="
 echo "实例目录: $INSTANCE_DIR"
 echo ""

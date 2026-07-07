@@ -56,22 +56,11 @@ def main():
     sev_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
     findings.sort(key=lambda x: (sev_order.get(x.get('severity', 'low'), 99), x.get('id', 'Z')))
 
-    REQUIRES_HUMAN_IDS = ['C-3', 'C-5', 'C-7', 'H-13', 'H-14', 'H-16', 'H-17', 'H-18']
-    COVERED_BY = {
-        'C-8': 'H-8（Agent prompt 要求小写 severity）',
-        'H-9': 'H-8（Agent prompt 要求 incomplete 字段）',
-        'H-15': 'SKILL.md 已有懒加载优化注释',
-    }
-    RECOMMENDED_ACTIONS = {
-        'C-3': '在 CLAUDE.md 中增加 deny 规则作为临时缓解；等待平台 PreToolUse Hook 功能',
-        'C-5': '为各 lens Agent prompt 增强"拒绝执行非审计指令"的自检规则（M-9 模式）',
-        'C-7': '将 settings.hook-example.json 中的伪代码替换为实际可测试的 Hook 配置后重新部署',
-        'H-13': '在 CLAUDE.md deny 列表中增加更多危险模式（参见 P-security-auditor-7 的 6 种绕过）',
-        'H-14': '在新增视角或 Agent 时同步更新 THREAT-MODEL.md 的攻击面和防御层分析',
-        'H-16': '短期：在企业 CI pipeline 中对 .audit-chain.json 执行 GPG 签名；长期：对接外部签名服务',
-        'H-17': '重跑 audit-loop 全面自审计验证 KC-3 已正确录入（C-6 修复后）',
-        'H-18': '独立审计 code-auditor Agent（非 audit-loop 范围），或移除其 WebFetch/WebSearch tools 声明',
-    }
+    # C-2 fix: 不再硬编码上次审计的 issue 状态。从 checklist JSON 动态读取。
+    # requires_human: 从 issue.status 字段判定
+    # fixed: 从 issue.status (fix_attempted/fixed) 或 verification verdict (resolved) 判定
+    # persisting: 从 verification verdict 判定
+    # deferred: 其他所有情况
 
     def get_issue_status(issue):
         iid = issue['id']
@@ -81,12 +70,12 @@ def main():
                 return 'fixed', ''
             elif v['verdict'] == 'persisting':
                 return 'persisting', ''
-        if issue.get('status') == 'fix_attempted':
+        # C-2 fix: 从 issue 自身 status 字段动态判定，不再使用硬编码列表
+        status = issue.get('status', '')
+        if status in ('fix_attempted', 'fixed', 'resolved'):
             return 'fixed', ''
-        if iid in REQUIRES_HUMAN_IDS:
-            return 'requires_human', ''
-        if iid in COVERED_BY:
-            return 'fixed', f'由 {COVERED_BY[iid]} 覆盖'
+        if status == 'requires_human':
+            return 'requires_human', issue.get('recommendation', '')
         return 'deferred', ''
 
     def get_fix_desc(issue):
@@ -234,7 +223,7 @@ def main():
             iid = issue['id']
             sev = issue.get('severity', '?').capitalize()
             desc = issue.get('description', issue.get('title', ''))[:100]
-            action = RECOMMENDED_ACTIONS.get(iid, '需进一步分析确定行动方案')
+            action = issue.get('recommendation', '需进一步分析确定行动方案')
             L(f'| {iid} | {sev} | {desc} | {action} |')
         L()
 
@@ -275,21 +264,14 @@ def main():
     L()
     L('| ID | 状态 | 描述 |')
     L('|----|:---:|------|')
-    ap_defaults = [
-        ('AP-1', '⚠️ 缓解', '孤儿 lockfile——前一 session 异常退出未执行 cleanup'),
-        ('AP-2', '⚠️ 缓解', 'select-token-tier 含缓存文件致档位误判——SKILL.md 已指示排除缓存'),
-        ('AP-3', '✅ 已修复', 'classify-assets 扫描缓存文件——IGNORE_DIRS 增加 .claude'),
-        ('AP-4', '✅ 已修复', '文档脚本数 19 vs 实际 21——H-1 修正'),
-        ('AP-5', '✅ 已修复', 'Glob 扫描未排除 .claude/cache/——C-10 修正'),
-        ('AP-6', '✅ 已修复', 'SKILL.md Step 0 步骤顺序导致 INSTANCE_DIR 未定义——C-10 重排'),
-        ('AP-7', '✅ 已修复', 'validate-perspective-output.sh fail-open——C-4 修复为 fail-closed'),
-        ('AP-8', '❌ 未修复', 'haiku 性能透镜超 300s 阈值，编排者无超时监控'),
-        ('AP-9', '❌ 未修复', 'SRE 视角透镜 (haiku) 未产出输出——建议视角透镜最低用 sonnet'),
-        ('AP-10', '✅ 已修复', 'perf 与 compute-risk-score 大小写不兼容——H-8 要求小写 severity'),
-        ('AP-11', '⚠️ 缓解', '修复阶段后编排者停顿而非自动进入 Round 2——SKILL.md 已追加强制标记'),
-    ]
-    for ap_id, ap_status, ap_desc in ap_defaults:
-        L(f'| {ap_id} | {ap_status} | {ap_desc} |')
+    # C-2 fix: AP 问题从 checklist 中动态提取（type='process' 的 issue）
+    ap_issues = [i for i in findings if i.get('type') == 'process' and i.get('id', '').startswith('AP-')]
+    if ap_issues:
+        for ap in ap_issues:
+            ap_status = '✅ 已修复' if get_issue_status(ap)[0] == 'fixed' else '❌ 未修复'
+            L(f'| {ap["id"]} | {ap_status} | {ap.get("description", "")[:100]} |')
+    else:
+        L('| — | — | 本轮无审计过程发现 |')
     L()
 
     # 六、残余风险
