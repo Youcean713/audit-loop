@@ -94,13 +94,15 @@
 | Agent spawn 成功但永不返回 | 设置绝对截止时间（每轮 900s），超时视为该 Agent 崩溃，按单 Agent 超时处理 |
 | 合并审查官(Step 2)超时 | 先按降级链重试（opus→sonnet→haiku），全部失败 → **强制执行 `bash scripts/mechanical-dedup.sh $INSTANCE_DIR`**（替代 prose 级"编排者自行去重"——脚本保证：两级去重 + 强制包含全部软性发现 + 覆盖摘要确认）。⚠️ 降级通知用户 |
 | Agent 访问不可信 URL（WebFetch/WebSearch/web-reader） | **known_limitation** — 编排者应在 Step 0 剥离审计范围中所有 URL（替换为 `[URL REDACTED]`）。若绕过 → 属平台层 WebFetch URL 白名单缺失，skill 代码无法修复。建议在 settings.json 配置 WebFetch/WebSearch 的 allowedDomains 或通过 PreToolUse Hook 拦截 |
-| inline prompt Agent 继承通用工具集（Tools:* 绕过 agent frontmatter 限制） | **known_limitation** → 三层缓解见下方「Agent 工具权限三层纵深」节。根本解决需平台支持 inline prompt Agent 的工具白名单机制 |
+| inline prompt Agent 继承通用工具集（Tools:* 绕过 agent frontmatter 限制） | **AP-12 fix**: 根因是未用 `subagent_type` 调用。`tools`/`disallowedTools` 字段对插件 Agent 运行时强制（仅 hooks/mcpServers/permissionMode 被忽略）。PreToolUse Hook 强制 `subagent_type` + 三层缓解见下方「Agent 工具权限三层纵深」节。已知平台 bug（tools 可能被绕过）见 `references/known-issues.md` |
 
 ---
 
-## Agent 工具权限三层纵深（C-3 缓解）🆕
+## Agent 工具权限三层纵深（C-3/AP-12 缓解）🆕
 
-> inline prompt + model 参数调用的 Agent 继承调用者全部 Tools:*（绕过 agent frontmatter tools 声明）。以下三层缓解从平台级到 skill 级逐层递进。
+> AP-15 fix: `tools`/`disallowedTools` 字段对插件 Agent 运行时强制（需通过 `subagent_type` 调用生效）。
+> 但存在 3 个未修复平台 bug（SDK #172、#63762、#31292，见 `references/known-issues.md`），需三层纵深缓解。
+> 第一层 PreToolUse Hook 强制 `subagent_type`（AP-12），第二层 Agent frontmatter `tools`/`disallowedTools`，第三层 Hook 拦截审计范围内的 Write/Edit。
 
 ### 第一层: PreToolUse Hook（平台级强制）
 

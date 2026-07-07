@@ -23,16 +23,22 @@
 
 ### Agent 调用方式
 
-编排者从 agent 文件提取 prompt 内容（替换占位符后），使用 inline prompt + model 参数：
+编排者从 agent 文件提取 prompt 内容（替换占位符后），使用 `subagent_type` 参数调用 plugin.json 注册的具名 Agent 类型：
 
 ```
 Agent(
+  subagent_type="audit-loop:lens-security",  # 🚨 必须使用具名类型（AP-12 fix）
   model="fable",
   prompt="<从 agents/lens-security.md 提取的 prompt，{审计范围}和{输出路径}已替换>",
   run_in_background=true
 )
 ```
 
+> **Why subagent_type（AP-12 fix）**: plugin.json 已注册 9 个具名 Agent 类型。使用 `subagent_type` 可确保：
+> 1. Agent 获得正确的 tools 限制（Glob/Grep/Read/Write vs 全部 Tools:*）
+> 2. SubagentStop Hook 能通过 agent description 精确识别 Agent 类型
+> 3. 遵循插件架构的 Agent 类型系统
+>
 > **Why inline prompt**: `agents/` 目录不在 Agent 工具的搜索路径中（仅 `.claude/agents/` 被自动发现）。agent 文件作为 prompt 模板的权威存储位置，编排者运行时读取并 inline 传入。
 
 ---
