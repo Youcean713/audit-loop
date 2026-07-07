@@ -1,7 +1,6 @@
 {
-  "description": "audit-loop 三层 Hook 强制执行：PreToolUse（Agent spawn 前置条件）+ SubagentStop（Agent 输出验证）+ Stop（审计完整性门控）",
-
-  "PreToolUse": [
+  "hooks": {
+    "PreToolUse": [
     {
       "matcher": "Agent",
       "description": "在 spawn 任何 audit-loop Agent 前验证前置条件",
@@ -17,8 +16,8 @@
 
   "SubagentStop": [
     {
-      "matcher": "",
-      "description": "任何子 Agent 完成后验证输出产品",
+      "matcher": "^audit-loop:",
+      "description": "audit-loop 子 Agent 完成后验证输出产品（P0-6: 精确匹配插件前缀，避免误触发非审计 Agent）",
       "hooks": [
         {
           "type": "command",
@@ -32,7 +31,7 @@
   "Stop": [
     {
       "matcher": "",
-      "description": "防止审计未完成时退出主会话",
+      "description": "防止审计未完成时退出主会话（P0-3: decision:block + exit 2 双保险）",
       "hooks": [
         {
           "type": "command",
@@ -41,5 +40,20 @@
         }
       ]
     }
+  ],
+
+  "PreCompact": [
+    {
+      "matcher": "",
+      "description": "上下文压缩前保存审计进度快照（P1-1: 防 /compact 丢上下文，AP-13 技术根因）",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/save-audit-context.sh\"",
+          "timeout": 10
+        }
+      ]
+    }
   ]
+  }
 }

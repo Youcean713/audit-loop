@@ -12,6 +12,24 @@
 
 set -euo pipefail
 
+# P1-3: 递归守卫，防 Hook 在子 Agent 内部循环触发（Dich01 生产案例模式）
+_GUARD="/tmp/audit-loop-hook-$$-$(basename "$0")"
+[ -f "$_GUARD" ] && exit 0
+touch "$_GUARD"
+trap 'rm -f "$_GUARD"' EXIT
+
+# P1-2: JSON 字段读取 helper（jq 优先，python sys.argv 回退，无 shell 插值消除注入风险 M-6/S-1）
+_jf() {
+    local file="$1" key="$2" default="${3:-}"
+    if command -v jq >/dev/null 2>&1; then
+        local v
+        v=$(jq -r --arg k "$key" '.[$k] // empty' "$file" 2>/dev/null) || v=""
+        if [ -n "$v" ] && [ "$v" != "null" ]; then printf '%s' "$v"; else printf '%s' "$default"; fi
+    else
+        python -c "import json,sys; d=json.load(open(sys.argv[1],'r',encoding='utf-8')); v=d.get(sys.argv[2],sys.argv[3]); print(v if v is not None else sys.argv[3])" "$file" "$key" "$default" 2>/dev/null || printf '%s' "$default"
+    fi
+}
+
 # 读取 stdin（PreToolUse Hook 传入的 JSON）
 STDIN_DATA=$(cat)
 
@@ -25,32 +43,65 @@ if [ "$TOOL_NAME" != "Agent" ] && [ "$TOOL_NAME" != "Task" ]; then
     exit 0  # 不是 Agent spawn，放行
 fi
 
-# 提取 Agent prompt 判断是否 audit-loop 相关
+# 提取 Agent prompt 和 subagent_type（双信号判断）
 AGENT_PROMPT=$(echo "$STDIN_DATA" | python -c "import json,sys; d=json.load(sys.stdin); ti=d.get('tool_input',{}); print(ti.get('prompt',''))" 2>/dev/null || echo "")
-
-if [ -z "$AGENT_PROMPT" ]; then
-    exit 0  # 无法提取 prompt，放行
+if command -v jq >/dev/null 2>&1; then
+    SUBAGENT_TYPE=$(echo "$STDIN_DATA" | jq -r '.tool_input.subagent_type // ""' 2>/dev/null || echo "")
+else
+    SUBAGENT_TYPE=$(echo "$STDIN_DATA" | python -c "import json,sys; ti=json.load(sys.stdin).get('tool_input',{}); print(ti.get('subagent_type',''))" 2>/dev/null || echo "")
 fi
 
-# 检查提示词中是否包含 audit-loop 特征
-if ! echo "$AGENT_PROMPT" | grep -qE '(audit-loop|INSTANCE_DIR=.*audit-|你是 audit-loop 的|lens-security|lens-architecture|lens-quality|lens-performance)' 2>/dev/null; then
-    exit 0  # 不是 audit-loop Agent，放行
+# 判断是否 audit-loop（双信号：subagent_type 前缀 + prompt 特征）
+IS_BY_TYPE=false
+IS_BY_PROMPT=false
+case "$SUBAGENT_TYPE" in audit-loop:*) IS_BY_TYPE=true ;; esac
+if echo "$AGENT_PROMPT" | grep -qE '(audit-loop|INSTANCE_DIR=.*audit-|你是 audit-loop 的|lens-security|lens-architecture|lens-quality|lens-performance)' 2>/dev/null; then
+    IS_BY_PROMPT=true
 fi
+
+# ===== AP-12 fix: prompt 含 audit-loop 特征但未用 subagent_type → 违规 =====
+# Why: 不带 subagent_type 会走 general-purpose 继承全部 Tools:*（C-3 真实根因）
+if [ "$IS_BY_PROMPT" = true ] && [ "$IS_BY_TYPE" = false ]; then
+    printf '%s\n' "🚨 audit-loop PreToolUse Hook: AP-12 违规" >&2
+    printf '%s\n' "检测到 audit-loop 审计意图，但未使用 subagent_type 调用" >&2
+    printf '%s\n' "必须用 Agent(subagent_type=\"audit-loop:lens-security\", ...) 等具名类型" >&2
+    printf '%s\n' "禁止用 Agent(model=..., prompt=...) 通用调用（会继承全部 Tools:* 绕过工具限制）" >&2
+    exit 2
+fi
+
+# 非 audit-loop（双信号都为 false）→ 放行
+if [ "$IS_BY_TYPE" = false ]; then
+    exit 0
+fi
+
+# 校验 subagent_type 在白名单内
+case "$SUBAGENT_TYPE" in
+    audit-loop:lens-security|audit-loop:lens-architecture|audit-loop:lens-quality|\
+    audit-loop:lens-performance|audit-loop:lens-perspective|audit-loop:merge-reviewer|\
+    audit-loop:verifier|audit-loop:perspective-recommender|audit-loop:code-auditor) ;;
+    *)
+        printf '%s\n' "🚨 audit-loop PreToolUse Hook: 未知 subagent_type: $SUBAGENT_TYPE" >&2
+        printf '%s\n' "允许的类型: audit-loop:lens-{security,architecture,quality,performance,perspective}," >&2
+        printf '%s\n' "          audit-loop:{merge-reviewer,verifier,perspective-recommender,code-auditor}" >&2
+        exit 2
+        ;;
+esac
 
 # ===== 2. 提取 instance_dir =====
-INSTANCE_DIR=$(echo "$AGENT_PROMPT" | grep -oE 'audit-[0-9]{8}-[0-9]{6}-[a-f0-9]{4}' | head -1)
+# 注意: grep 无匹配返回 exit 1，在 set -euo pipefail 下会触发脚本退出，需 || true
+INSTANCE_DIR=$( (echo "$AGENT_PROMPT" | grep -oE 'audit-[0-9]{8}-[0-9]{6}-[a-f0-9]{4}' 2>/dev/null || true) | head -1)
 if [ -z "$INSTANCE_DIR" ]; then
-    # 尝试从状态文件获取
+    # 尝试从状态文件获取（P1-2: 用 _jf helper 替代 python -c）
     STATE_FILE="${PLUGIN_ROOT}/.audit-state.json"
     if [ -f "$STATE_FILE" ]; then
-        INSTANCE_DIR=$(python -c "import json; d=json.load(open('$STATE_FILE','r',encoding='utf-8')); print(d.get('instance_dir',''))" 2>/dev/null || echo "")
+        INSTANCE_DIR=$(_jf "$STATE_FILE" instance_dir "")
     fi
 fi
 
-# 尝试找到完整路径
+# 尝试找到完整路径（CLAUDE_PROJECT_DIR 可能未设置，用 :- 防 set -u 报错）
 if [ -n "$INSTANCE_DIR" ]; then
-    if [ -d "${CLAUDE_PROJECT_DIR}/.claude/cache/audit-context/${INSTANCE_DIR}" ]; then
-        INSTANCE_DIR="${CLAUDE_PROJECT_DIR}/.claude/cache/audit-context/${INSTANCE_DIR}"
+    if [ -d "${CLAUDE_PROJECT_DIR:-}/.claude/cache/audit-context/${INSTANCE_DIR}" ]; then
+        INSTANCE_DIR="${CLAUDE_PROJECT_DIR:-}/.claude/cache/audit-context/${INSTANCE_DIR}"
     elif [ -d "${HOME}/.claude/cache/audit-context/${INSTANCE_DIR}" ]; then
         INSTANCE_DIR="${HOME}/.claude/cache/audit-context/${INSTANCE_DIR}"
     fi
@@ -93,9 +144,10 @@ fi
 if echo "$AGENT_PROMPT" | grep -qE '(merge-reviewer|合并审查官)' 2>/dev/null; then
     if [ -n "$INSTANCE_DIR" ] && [ -d "$INSTANCE_DIR" ]; then
         MISSING=""
-        for lens in lens-security lens-architecture lens-quality lens-performance; do
-            if [ ! -f "${INSTANCE_DIR}/${lens}.json" ]; then
-                MISSING="${MISSING} ${lens}"
+        # 透镜名 → 输出文件名映射（与 round-details.md 一致）
+        for lens_file in lens-security.json lens-arch.json lens-quality.json lens-perf.json; do
+            if [ ! -f "${INSTANCE_DIR}/${lens_file}" ]; then
+                MISSING="${MISSING} ${lens_file}"
             fi
         done
         if [ -n "$MISSING" ]; then
