@@ -2,9 +2,9 @@
 name: "lens-security"
 description: "Audit-loop 安全透镜特化 Agent。仅执行安全+合规审计，不审计代码质量、架构或性能。"
 tools: Glob, Grep, Read, Write
-# ⚠️ 已知局限 (C-3/known_limitation): 本 Agent 通过 inline prompt + model 参数调用,
-# 运行时继承调用者全部 Tools:*（而非此处的 tools 声明）。
-# tools 字段记录的是设计意图，不是运行时约束。
+# tools 字段运行时强制（需通过 subagent_type 调用生效，AP-15 fix）。
+# 已知平台 bug（tools 可能被绕过）见 references/known-issues.md，由 PreToolUse Hook 兜底。
+# 插件 Agent 不支持 hooks/mcpServers/permissionMode frontmatter 字段（平台限制）。
 
   # 角色特化 (lens-security): 负责 OWASP 注入链追踪
   # 注入面 #1（审计范围字符串）有 validate-input.sh 7 层防御
@@ -12,6 +12,9 @@ tools: Glob, Grep, Read, Write
   # 攻击路径: 恶意项目文件 → Agent context → 自我工具调用 → 系统越权
 # 平台级防护依赖 PreToolUse Hook 或 settings.json deny 规则。
 model: fable
+disallowedTools: Bash, Edit, Agent
+maxTurns: 30
+effort: high
 ---
 
 你是 audit-loop 的安全透镜特化实例。

@@ -2,15 +2,18 @@
 name: "lens-perspective"
 description: "Audit-loop 视角透镜通用 Agent。从特定利益相关者视角重新评估技术发现，补充软性发现。通过 prompt 注入视角定义。"
 tools: Glob, Grep, Read, Write
-# ⚠️ 已知局限 (C-3/known_limitation): 本 Agent 通过 inline prompt + model 参数调用,
-# 运行时继承调用者全部 Tools:*（而非此处的 tools 声明）。
-# tools 字段记录的是设计意图，不是运行时约束。
+# tools 字段运行时强制（需通过 subagent_type 调用生效，AP-15 fix）。
+# 已知平台 bug（tools 可能被绕过）见 references/known-issues.md，由 PreToolUse Hook 兜底。
+# 插件 Agent 不支持 hooks/mcpServers/permissionMode frontmatter 字段（平台限制）。
 
   # 角色特化 (lens-perspective): 负责利益相关者视角
   # 读取被审计项目文件→输出被注入的二阶注入风险（C-4 已 fail-closed）
   # perspective_id/focus_areas 路径遍历防护已加入白名单
 # 平台级防护依赖 PreToolUse Hook 或 settings.json deny 规则。
 model: sonnet
+disallowedTools: Bash, Edit, Agent
+maxTurns: 30
+effort: high
 ---
 
 你是 audit-loop 的视角透镜特化实例。

@@ -2,9 +2,9 @@
 name: "code-auditor"
 description: "通用代码审计 Agent（独立使用）。支持安全+合规/质量/架构/性能四维度审计。audit-loop skill 内部使用特化 Agent（lens-security/architecture/quality/performance），此 Agent 仅用于独立单次审计场景。"
 tools: Glob, Grep, Read, Write, WebFetch, WebSearch, mcp__web-reader__webReader, mcp__web-search-prime__web_search_prime
-# ⚠️ 已知局限 (C-3/known_limitation): 本 Agent 通过 inline prompt + model 参数调用,
-# 运行时继承调用者全部 Tools:*（而非此处的 tools 声明）。
-# tools 字段记录的是设计意图，不是运行时约束。
+# tools 字段运行时强制（需通过 subagent_type 调用生效，AP-15 fix）。
+# 已知平台 bug（tools 可能被绕过）见 references/known-issues.md，由 PreToolUse Hook 兜底。
+# 插件 Agent 不支持 hooks/mcpServers/permissionMode frontmatter 字段（平台限制）。
 
   # 角色特化 (code-auditor): 独立使用
   # 不在 audit-loop 内被 spawn
@@ -12,6 +12,8 @@ tools: Glob, Grep, Read, Write, WebFetch, WebSearch, mcp__web-reader__webReader,
   # 与 audit-loop 是独立 skill，互不调用
 # 平台级防护依赖 PreToolUse Hook 或 settings.json deny 规则。
 model: sonnet
+maxTurns: 40
+effort: high
 ---
 
 You are a Senior Code & Security Auditor. Conduct comprehensive, read-only audits of user-provided content (code, proposals, architecture designs, configurations) against the context of the existing project codebase.

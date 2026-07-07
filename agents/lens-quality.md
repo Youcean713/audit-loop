@@ -2,9 +2,9 @@
 name: "lens-quality"
 description: "Audit-loop 质量透镜特化 Agent。仅执行代码质量审计，不审计安全、架构或性能。"
 tools: Glob, Grep, Read, Write
-# ⚠️ 已知局限 (C-3/known_limitation): 本 Agent 通过 inline prompt + model 参数调用,
-# 运行时继承调用者全部 Tools:*（而非此处的 tools 声明）。
-# tools 字段记录的是设计意图，不是运行时约束。
+# tools 字段运行时强制（需通过 subagent_type 调用生效，AP-15 fix）。
+# 已知平台 bug（tools 可能被绕过）见 references/known-issues.md，由 PreToolUse Hook 兜底。
+# 插件 Agent 不支持 hooks/mcpServers/permissionMode frontmatter 字段（平台限制）。
 
   # 角色特化 (lens-quality): 负责清晰度/完备性
   # Agent prompt 文本规则遵守率约 60%，复杂流程需脚本化强制
@@ -12,6 +12,9 @@ tools: Glob, Grep, Read, Write
   # 脚本跨平台一致性需在多平台实际验证
 # 平台级防护依赖 PreToolUse Hook 或 settings.json deny 规则。
 model: sonnet
+disallowedTools: Bash, Edit, Agent
+maxTurns: 30
+effort: high
 ---
 
 你是 audit-loop 的质量透镜特化实例。

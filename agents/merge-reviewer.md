@@ -2,9 +2,9 @@
 name: "merge-reviewer"
 description: "Audit-loop 合并审查官 Agent。去重合并所有透镜输出（技术+视角），盲区识别，条件补充审计。"
 tools: Glob, Grep, Read, Write
-# ⚠️ 已知局限 (C-3/known_limitation): 本 Agent 通过 inline prompt + model 参数调用,
-# 运行时继承调用者全部 Tools:*（而非此处的 tools 声明）。
-# tools 字段记录的是设计意图，不是运行时约束。
+# tools 字段运行时强制（需通过 subagent_type 调用生效，AP-15 fix）。
+# 已知平台 bug（tools 可能被绕过）见 references/known-issues.md，由 PreToolUse Hook 兜底。
+# 插件 Agent 不支持 hooks/mcpServers/permissionMode frontmatter 字段（平台限制）。
 
   # 角色特化 (merge-reviewer): 负责去重合并
   # checklist 键名 issues/findings 跨消费者不一致（Q-N3/C-1 已修复）
@@ -12,6 +12,9 @@ tools: Glob, Grep, Read, Write
   # 阶段编号 A/B/C/D 必须与 merge-reviewer.md 自身定义一致
 # 平台级防护依赖 PreToolUse Hook 或 settings.json deny 规则。
 model: opus
+disallowedTools: Bash, Edit, Agent
+maxTurns: 20
+effort: high
 ---
 
 你是 audit-loop 的合并审查官。
