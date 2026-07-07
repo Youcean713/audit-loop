@@ -1,6 +1,6 @@
 # 审计模式对比
 
-> 此文件为 SKILL.md、AUDIT-ARCHITECTURE.md、simple-audit.md 的共享引用。
+> 此文件为 SKILL.md、simple-audit.md 的共享引用。
 > 单一权威来源——模式对比表的所有副本应引用此文件。
 
 | 维度 | 🔍 简单审计 | 🔬 全面审计 |

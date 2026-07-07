@@ -163,9 +163,9 @@ now_str = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 INJECTION_PATTERNS = ['system:', 'assistant:', '[INST]', '<|im_start|>', 'ignore previous',
                       '```', '<script', 'sudo ', 'rm -rf', 'curl ', 'wget ']
 def is_safe(bs):
-    desc = bs.get('description', '')
-    excerpt = bs.get('code_excerpt', '')
-    combined = (desc + ' ' + excerpt).lower()
+    # M-3 fix: 检查所有持久化字段（原仅检 description+code_excerpt，trigger_condition/file 等字段可持久化二阶注入载荷到盲区库）
+    fields_to_check = ['description', 'code_excerpt', 'trigger_condition', 'file', 'line_range', 'cwe_id', 'dimension', 'source', 'severity']
+    combined = ' '.join(str(bs.get(f, '')) for f in fields_to_check).lower()
     for pattern in INJECTION_PATTERNS:
         if pattern.lower() in combined:
             return False

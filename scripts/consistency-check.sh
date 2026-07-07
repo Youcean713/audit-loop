@@ -73,7 +73,7 @@ if [ -n "$SPAWN_FULL_WRONG" ]; then
 fi
 
 # 降级矩阵条目数(25)
-DEG_WRONG=$(grep -rnP "降级.*?\d+(?=\s*条)" "$SKILL_DIR/references/guardrails.md" "$SKILL_DIR/AUDIT-ARCHITECTURE.md" 2>/dev/null | grep -v "25\|2 条 known_limitation\|6 次 Agent" || true)
+DEG_WRONG=$(grep -rnP "降级.*?\d+(?=\s*条)" "$SKILL_DIR/references/guardrails.md" 2>/dev/null | grep -v "25\|2 条 known_limitation\|6 次 Agent" || true)
 if [ -n "$DEG_WRONG" ]; then
     echo "  ❌ 降级矩阵条目数: 发现非标准值(应为25):"
     echo "$DEG_WRONG"
@@ -100,7 +100,7 @@ echo "[2/5] 模型列一致性..."
 MODEL_MISMATCH=0
 
 # 文件范围（排除历史和降级描述）
-MODEL_FILES=("$SKILL_DIR/SKILL.md" "$SKILL_DIR/references/lens-config.md" "$SKILL_DIR/references/round-details.md" "$SKILL_DIR/AUDIT-ARCHITECTURE.md" "$SKILL_DIR/references/mode-comparison.md" "$SKILL_DIR/references/simple-audit.md")
+MODEL_FILES=("$SKILL_DIR/SKILL.md" "$SKILL_DIR/references/lens-config.md" "$SKILL_DIR/references/round-1.md" "$SKILL_DIR/references/fix-phase.md" "$SKILL_DIR/references/round-2-3.md" "$SKILL_DIR/references/mode-comparison.md" "$SKILL_DIR/references/simple-audit.md")
 
 # 质量=haiku 残留（最重要的检测——历史上被升级）
 HAIKU_QUALITY=$(grep -rn "质量=haiku\|质量.*haiku.*透镜\|质量透镜.*haiku" "${MODEL_FILES[@]}" 2>/dev/null | grep -v "原分配\|变更原因\|grep.*质量\|需改为 sonnet\|质量=sonnet\|质量.*haiku.*→.*sonnet\|质量.*haiku.*升级\|历史\|模型分配历史\|演进轨迹\|质量透镜模型(sonnet)" || true)
@@ -176,8 +176,23 @@ else
     echo "  ⚠️  非 git 仓库，跳过范围校验"
 fi
 
+# Check 6: 幽灵引用检测（AP-18 fix: truth-registry 引用但不存在的脚本/文件，类似 C-6 模式）
+echo "[6/6] 幽灵引用检测（AP-18）..."
+GHOST_REFS=0
+for script in $(grep -oP 'scripts/[a-z_-]+\.sh' "$SKILL_DIR/references/truth-registry.md" 2>/dev/null | sort -u); do
+    [ -f "$SKILL_DIR/$script" ] || { echo "  ❌ 幽灵脚本: $script（truth-registry 引用但不存在）"; GHOST_REFS=$((GHOST_REFS + 1)); }
+done
+for ref in $(grep -oP 'references/[a-z_-]+\.md' "$SKILL_DIR/references/truth-registry.md" 2>/dev/null | sort -u); do
+    [ -f "$SKILL_DIR/$ref" ] || { echo "  ❌ 幽灵文件: $ref（truth-registry 引用但不存在）"; GHOST_REFS=$((GHOST_REFS + 1)); }
+done
+if [ "$GHOST_REFS" -eq 0 ]; then
+    echo "  ✅ 无幽灵引用"
+else
+    FAILURES=$((FAILURES + 1))
+fi
+
 echo ""
-echo "=== 结果: $FAILURES/5 项不一致 ==="
+echo "=== 结果: $FAILURES/6 项不一致 ==="
 
 if [ "$ROUND" -ge 3 ] && [ "$FAILURES" -gt 0 ]; then
     echo "⚠️  3 轮校验后仍有不一致，标记 consistency_gap"

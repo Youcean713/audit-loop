@@ -17,7 +17,12 @@ fi
 printf '%s\n' "=== overridable 残留检查 ==="
 
 # 查找最新的 verification-round-*.json
-VERIFICATION_FILE=$(ls "$INSTANCE_DIR"/verification-round-*.json 2>/dev/null | sort -V | tail -1)
+# M-13 fix: sort -V 是 GNU 扩展（macOS/BSD 不可用，set -euo pipefail 下脚本终止），改用 python 字典序排序取最新轮次
+VERIFICATION_FILE=$(python -c "
+import glob, sys
+files = sorted(glob.glob(sys.argv[1] + '/verification-round-*.json'))
+print(files[-1] if files else '')
+" "$INSTANCE_DIR" 2>/dev/null || echo "")
 
 if [ -z "$VERIFICATION_FILE" ]; then
     printf '%s\n' "未找到 verification JSON 文件"

@@ -44,16 +44,15 @@ def check_string(value, field_name, allow_chinese=False):
     normalized = unicodedata.normalize('NFKC', value)
     lower = normalized.lower()
 
+    # L-9 fix: 收集所有注入模式（原首匹配即 return 隐藏后续模式，降低盲区收割精度）
     # 黑名单: 角色切换
     for pattern in role_switch:
         if pattern.lower() in lower:
             failures.append(f'{field_name}: 检测到角色切换短语 \"{pattern}\"')
-            return
     # 黑名单: 注入短语
     for phrase in injection_phrases:
         if phrase in lower:
             failures.append(f'{field_name}: 检测到注入短语 \"{phrase}\"')
-            return
     # 反引号
     if '\`' in normalized:
         failures.append(f'{field_name}: 含反引号')

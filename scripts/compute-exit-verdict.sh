@@ -58,8 +58,9 @@ RESULT=$(python << 'PYEOF'
 import json, os, sys
 
 instance_dir = os.environ['INSTANCE_DIR_ABS']
-prev_c_plus_h_str = sys.argv[2] if len(sys.argv) > 2 else ''
-round_str = sys.argv[3] if len(sys.argv) > 3 else ''
+# C-5 fix: heredoc 模式下 sys.argv 仅含 argv[0]，原 sys.argv[2]/[3] 恒空导致 Rule 0（3轮BLOCK）和 Rule 4（C+H无减少BLOCK）永不触发。改用 os.environ 读取（与上方 export PREV_C_PLUS_H/ROUND_NUM 对齐）
+prev_c_plus_h_str = os.environ.get('PREV_C_PLUS_H', '')
+round_str = os.environ.get('ROUND_NUM', '')
 
 # 读取最新的 verification JSON（round-3 优先，否则 round-2）
 verification = None
@@ -158,6 +159,9 @@ if os.path.exists(checklist_path):
     # C-1 fix: 兼容 'findings' 和 'issues' 两种键名
     issues_list = checklist.get('issues', checklist.get('findings', []))
     for issue in issues_list:
+        # 改进建议4: 软性发现（P-* 视角建议）不计入门控（避免视角建议阻塞技术 SHIP）
+        if str(issue.get('id', '')).startswith('P-'):
+            continue
         cvss = issue.get('cvss_score', 0)
         if isinstance(cvss, (int, float)) and cvss > cvss_max:
             cvss_max = cvss

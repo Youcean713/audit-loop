@@ -22,7 +22,13 @@ echo "实例目录: $INSTANCE_DIR"
 
 # 🆕 H-5 修复: 验证 INSTANCE_DIR 路径合法性，防止误删
 # 必须包含 audit-context/audit- 子目录，拒绝诸如 / 或 home 目录等危险路径
+# M-6 fix: 拒绝路径穿越（..）——原 case 仅检查子串，不拒绝含 .. 的路径
 case "$INSTANCE_DIR" in
+    *..* )
+        echo "🔴 拒绝: INSTANCE_DIR 含路径穿越（..）"
+        echo "   传入路径: $INSTANCE_DIR"
+        exit 1
+        ;;
     *"/.claude/cache/audit-context/audit-"*|*"\\.claude\\cache\\audit-context\\audit-"*)
         ;;
     *)

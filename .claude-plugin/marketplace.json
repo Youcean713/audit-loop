@@ -5,12 +5,12 @@
   },
   "metadata": {
     "description": "多模型多维度代码审计循环插件",
-    "version": "1.0.0"
+    "version": "2.0.0"
   },
   "plugins": [
     {
       "name": "audit-loop",
-      "description": "多模型多维度代码审计循环 — 支持简单(8-15min)和全面(20-25min)双模式，SubagentStop/PreToolUse/Stop 三层 Hook 强制执行",
+      "description": "多模型多维度代码审计循环 — 支持简单(8-15min)和全面(20-25min)双模式，PreToolUse/SubagentStop/Stop/PreCompact 四层 Hook 强制执行",
       "source": "./",
       "skills": ["./"]
     }

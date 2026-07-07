@@ -279,12 +279,10 @@ def main():
     L()
     L('| 风险 | 概率 | 影响 | 当前状态 | 缓解措施 |')
     L('|------|:----:|:----:|----------|----------|')
-    L('| Agent 工具权限越界（C-3） | 中 | 极高 | 需平台 Hook | 9 个 Agent 已标注 known_limitation；settings.json deny 规则可临时缓解 |')
-    L('| 被审计文件内容注入（C-5） | 中 | 高 | 需 Agent 自检 | 所有 Agent prompt 已有自检指令；C-4 fail-closed 防线已加固 |')
-    L('| Hook 伪代码连锁失效（C-7） | 中 | 高 | 需真实 Hook API | settings.hook-example.json 已标注伪代码并附 fallback 方案 |')
-    L('| CLAUDE.md 信息泄露 | 中 | 中 | 建议脱敏 | 网关地址 172.16.1.95 为内网地址，外网不可达 |')
+    # M-14 fix: 移除硬编码残余风险条目（原 C-3/C-5/C-7 + 内网IP 172.16.1.95 是上轮自审计残留，对其他项目无效）
+    # 残余风险应由 checklist 的 requires_human issue 驱动，不应硬编码特定项目的问题
+    L('| requires_human 残留 | 见清单 | 高 | 需人工处理 | 详见"需人工处理"节的具体 issue（动态） |')
     L('| SHA-256 证据链可篡改 | 极低 | 中 | 需外部签名 | 正常使用场景下足矣检测意外损坏 |')
-    L('| haiku 复杂任务可靠性 | 中 | 低 | 需模型升级 | 视角透镜建议最低用 sonnet（lens-config.md） |')
     L()
 
     # 七、改进建议

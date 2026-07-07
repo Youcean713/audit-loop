@@ -31,7 +31,7 @@
 ## 核心特性
 
 - **四维度审计**：安全（OWASP/CVE/CWE）、架构（耦合/内聚/可扩展）、质量（错误处理/资源管理）、性能（Token 效率/缓存）
-- **多模型覆盖**：fable（安全）/ sonnet（架构+质量）/ haiku（性能）/ opus（合并审查官）— 4 种模型覆盖 4 个透镜，最大化对抗性审查的模型多样性
+- **多模型覆盖**：fable（安全）/ sonnet（架构+质量）/ haiku（性能）/ opus（合并审查官）— 3 种模型覆盖 4 个技术透镜（+opus 合并审查官），最大化对抗性审查的模型多样性
 - **双模式**：🔍 简单审计（8-15min，2 合并透镜）+ 🔬 全面审计（20-25min，4 独立透镜 + 视角透镜 + 专用合并审查官）
 - **自动循环**：发现 → 修复 → 验证 → 收敛自适应迭代（🟢🟡🔵🔴 四灯决策）
 - **四层 Hook 强制执行**：PreToolUse + SubagentStop + Stop + PreCompact — 防止编排者跳过步骤、Agent 输出残缺、上下文压缩丢失
@@ -228,6 +228,7 @@ audit-loop/
 │   ├── round-1.md               # Round 1 透镜 spawn
 │   ├── fix-phase.md             # 修复阶段
 │   ├── round-2-3.md             # 收敛验证 + 终裁
+│   ├── round-details.md         # Round 阶段索引（已拆分为 round-1/fix-phase/round-2-3）
 │   ├── lens-config.md           # 透镜模型配置
 │   ├── guardrails.md            # Token 守卫 + 降级矩阵
 │   ├── known-issues.md          # 已知平台限制

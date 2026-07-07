@@ -18,9 +18,15 @@ fi
 
 MISSING=0
 
-# Step 1: compute-risk-score
+# Step 1: compute-risk-score（L-5/M-10 fix: 用 jq 结构化检查 risk_score 字段，替代 grep 文本匹配，避免 minified/nested JSON 误判）
 RISK="$INSTANCE_DIR/checklist-round-1.json"
-if grep -q '"risk_score"' "$RISK" 2>/dev/null; then
+RISK_OK=false
+if command -v jq >/dev/null 2>&1; then
+    jq -e '[.issues // .findings // [] | .[] | select(.risk_score != null)] | length > 0' "$RISK" >/dev/null 2>&1 && RISK_OK=true
+else
+    grep -q '"risk_score"' "$RISK" 2>/dev/null && RISK_OK=true
+fi
+if [ "$RISK_OK" = true ]; then
     printf '%s\n' "✅ Step 1: 风险评分已计算"
 else
     printf '%s\n' "❌ Step 1: 风险评分缺失（需运行 compute-risk-score.sh）"
@@ -46,18 +52,33 @@ else
     MISSING=$((MISSING + 1))
 fi
 
-# Step 6: exit-verdict
+# Step 6: exit-verdict（C-4 fix: 用 heredoc + os.environ 替代 python -c shell 插值 open('$VERDICT')，消除注入风险；与 check-pre-merge.sh 模式对齐）
 VERDICT="$INSTANCE_DIR/exit-verdict.json"
 if [ -f "$VERDICT" ]; then
-    VERDICT_VAL=$(python3 -c "import json; print(json.load(open('$VERDICT')).get('verdict','?'))" 2>/dev/null || echo "?")
+    export VERDICT_PATH="$VERDICT"
+    VERDICT_VAL=$(python << 'PYEOF' 2>/dev/null || echo "?"
+import json, os
+try:
+    with open(os.environ['VERDICT_PATH'], 'r', encoding='utf-8') as f:
+        print(json.load(f).get('verdict', '?'))
+except Exception:
+    print('?')
+PYEOF
+)
     printf '%s\n' "✅ Step 6: 退出裁决已计算（$VERDICT_VAL）"
 else
     printf '%s\n' "❌ Step 6: 退出裁决缺失（需运行 compute-exit-verdict.sh）"
     MISSING=$((MISSING + 1))
 fi
 
-# Step 7: baseline deviation
-if grep -q '"alerts"' "$INSTANCE_DIR/checklist-round-1.json" 2>/dev/null; then
+# Step 7: baseline deviation（L-5 fix: 用 jq 结构化检查 alerts 字段，替代 grep 文本匹配）
+ALERTS_OK=false
+if command -v jq >/dev/null 2>&1; then
+    jq -e 'has("alerts")' "$INSTANCE_DIR/checklist-round-1.json" >/dev/null 2>&1 && ALERTS_OK=true
+else
+    grep -q '"alerts"' "$INSTANCE_DIR/checklist-round-1.json" 2>/dev/null && ALERTS_OK=true
+fi
+if [ "$ALERTS_OK" = true ]; then
     printf '%s\n' "✅ Step 7: 基线偏离已检查"
 else
     printf '%s\n' "⚠️  Step 7: 基线偏离检查未运行（可选）"

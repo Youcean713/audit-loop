@@ -8,18 +8,18 @@
 
 | 声明 | 权威来源 | 引用文件 |
 |------|---------|---------|
-| 全面审计 Token 阈值（100K/250K/600K） | `references/guardrails.md`「全面审计」表 | SKILL.md Step 0, AUDIT-ARCHITECTURE.md |
+| 全面审计 Token 阈值（100K/250K/600K） | `references/guardrails.md`「全面审计」表 | SKILL.md Step 0 |
 | 简单审计 Token 阈值（80K/150K/300K） | `references/guardrails.md`「简单审计」表 | SKILL.md Step 0, simple-audit.md |
 | Agent spawn 计数（简单 3-5 / 全面 7-13） | `references/mode-comparison.md` | SKILL.md 对比表, simple-audit.md |
-| 降级矩阵条目数（25） | `references/guardrails.md` 故障降级矩阵 | AUDIT-ARCHITECTURE.md |
-| Agent token 预估值 | `AUDIT-ARCHITECTURE.md` 3.8 节 | lens-config.md |
+| 降级矩阵条目数（25） | `references/guardrails.md` 故障降级矩阵 | guardrails.md（自引用） |
+| Agent token 预估值 | `references/lens-config.md`「全面审计 Agent 配置」 | — |
 
 ## 模型分配
 
 | 声明 | 权威来源 | 引用文件 |
 |------|---------|---------|
-| 阶段 1 透镜模型（fable/sonnet/sonnet/haiku） | `references/lens-config.md`「全面审计 Agent 配置」表 | round-details.md, AUDIT-ARCHITECTURE.md 3.1 |
-| 全流程参与模型（fable/opus/sonnet/haiku） | `AUDIT-ARCHITECTURE.md` 3.1 节 | SKILL.md 简单审计约束, merge-reviewer.md |
+| 阶段 1 透镜模型（fable/sonnet/sonnet/haiku） | `references/lens-config.md`「全面审计 Agent 配置」表 | round-1.md |
+| 全流程参与模型（fable/opus/sonnet/haiku） | `references/lens-config.md`「全面审计 Agent 配置」表 | SKILL.md 简单审计约束, merge-reviewer.md |
 | 视角透镜模型分配 | `references/lens-config.md`「视角透镜配置」表 | mode-comparison.md |
 
 ## 术语定义
@@ -27,15 +27,15 @@
 | 术语 | 权威来源 | 说明 |
 |------|---------|------|
 | "简单审计" / "全面审计" | `references/mode-comparison.md` | 模式对比的完整定义 |
-| "技术透镜" / "视角透镜" | `AUDIT-ARCHITECTURE.md` 3.7 节 | 两阶段并行的概念定义 |
-| "阶段 1" / "阶段 2" | `references/round-details.md` Round 1 Step 1 | Round 1 内部的两阶段划分 |
+| "技术透镜" / "视角透镜" | `references/round-1.md` Round 1 Step 1 | 两阶段并行的概念定义 |
+| "阶段 1" / "阶段 2" | `references/round-1.md` Round 1 Step 1 | Round 1 内部的两阶段划分 |
 
 ## 流程规则
 
 | 规则 | 权威来源 | 引用文件 |
 |------|---------|---------|
 | 自动推进暂停点（4 个） | `SKILL.md`「自动推进规则」 | simple-audit.md |
-| 修复优先级（C→H→M→Low） | `SKILL.md`「修复阶段」 | round-details.md |
+| 修复优先级（C→H→M→Low） | `SKILL.md`「修复阶段」 | fix-phase.md |
 | 退出判断决策树 | `scripts/compute-exit-verdict.sh`（脚本强制执行） | SKILL.md「退出判断」, guardrails.md |
 | 视角推荐失败回退 | `references/lens-config.md`「视角推荐 Agent 配置」 | SKILL.md Step 0b |
 | 视角输出安全验证 | `scripts/validate-perspective-output.sh` | SKILL.md Step 0b |
@@ -45,7 +45,7 @@
 | 供应链检测 | `scripts/detect-supply-chain.sh` | SKILL.md Step 0 |
 | SARIF 生成 | `scripts/generate-sarif.sh` | enterprise-output.md |
 | 证据链 | `scripts/generate-evidence-chain.sh` | guardrails.md |
-| 差异对比表 | `scripts/generate-diff-table.sh` | round-details.md |
+| 差异对比表 | `scripts/generate-diff-table.sh` | round-2-3.md |
 | 基线偏离检查 | `scripts/check-baseline-deviation.sh` | SKILL.md「企业级多角色输出」 |
 
 ## 脚本注册表（🆕 AI + 脚本架构）
@@ -85,12 +85,13 @@
 | `check-agent-spawn.sh` | 🆕 Hook (PreToolUse) | Agent spawn 前置条件验证（AP-13 强制执行） | 0=允许, 2=阻止 |
 | `check-agent-output.sh` | 🆕 Hook (SubagentStop) | Agent 输出产品验证（JSON 有效性检查） | 0=有效, 2=无效 |
 | `check-audit-complete.sh` | 🆕 Hook (Stop) | 审计完整性门控（防未完成退出） | 0=可退出, 2=阻止 |
+| `save-audit-context.sh` | 🆕 Hook (PreCompact) | 压缩前快照保存（防上下文丢失） | 0=放行 |
 
 ## Plugin 架构（🆕 v2.0.0）
 
 | 规则 | 权威来源 | 说明 |
 |------|---------|------|
-| 收敛分支判定（Case A/B/C） | `SKILL.md`「Round 2/3」+ `round-details.md` | 快收敛→全量重审+模型洗牌；正常→blast-radius重审；不收敛→聚焦重审 |
+| 收敛分支判定（Case A/B/C） | `SKILL.md`「Round 2/3」+ `round-2-3.md` | 快收敛→全量重审+模型洗牌；正常→blast-radius重审；不收敛→聚焦重审 |
 | 模型洗牌映射（第二审计员效应） | `agents/verifier.md` Mode A FULL_REAUDIT_SHUFFLED | 安全fable→opus / 架构sonnet→fable / 质量sonnet→opus / 性能haiku→sonnet |
 | 跨轮 issue 匹配算法 | `scripts/match-issues.sh` | 精确匹配(file+line) → 模糊匹配(file+重叠+描述相似度≥0.6) → 未匹配=New |
 | 变异审计（v2 方向） | `references/THREAT-MODEL.md`「未来增强」 | 注入已知 issue 模板验证透镜捕获率（类比 PITest MSI） |
@@ -110,3 +111,4 @@
 2. **新增声明时**：在此表中注册权威来源。
 3. **合并审查官校验时**：以本表作为对照基准——若某声明在引用文件中的表述与权威来源不一致，标记为 `consistency_gap`。
 4. **本表自身修改**：视为对 skill 架构的变更，需同步更新受影响的引用文件。
+5. **C-6 fix**: 移除了对不存在的 `AUDIT-ARCHITECTURE.md` 的全部引用（原 6 处），权威来源改为实际存在的文件（lens-config.md/round-1.md/guardrails.md）。

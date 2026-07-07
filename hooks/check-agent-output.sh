@@ -9,23 +9,9 @@
 
 set -euo pipefail
 
-# P1-3: 递归守卫，防 Hook 在子 Agent 内部循环触发（Dich01 生产案例模式）
-_GUARD="/tmp/audit-loop-hook-$$-$(basename "$0")"
-[ -f "$_GUARD" ] && exit 0
-touch "$_GUARD"
-trap 'rm -f "$_GUARD"' EXIT
-
-# P1-2: JSON 字段读取 helper（jq 优先，python sys.argv 回退，无 shell 插值消除注入风险 M-6/S-1）
-_jf() {
-    local file="$1" key="$2" default="${3:-}"
-    if command -v jq >/dev/null 2>&1; then
-        local v
-        v=$(jq -r --arg k "$key" '.[$k] // empty' "$file" 2>/dev/null) || v=""
-        if [ -n "$v" ] && [ "$v" != "null" ]; then printf '%s' "$v"; else printf '%s' "$default"; fi
-    else
-        python -c "import json,sys; d=json.load(open(sys.argv[1],'r',encoding='utf-8')); v=d.get(sys.argv[2],sys.argv[3]); print(v if v is not None else sys.argv[3])" "$file" "$key" "$default" 2>/dev/null || printf '%s' "$default"
-    fi
-}
+# C-8 fix: source 共享 helper 库（_jf + 递归守卫 + 状态读取），消除 4 Hook 重复（PERF-2/PERF-3 fix）
+source "$(dirname "$0")/audit-state.sh" || exit 0
+_audit_loop_guard || exit 0
 
 STDIN_DATA=$(cat)
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"

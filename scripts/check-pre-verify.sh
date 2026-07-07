@@ -23,8 +23,8 @@ if [ ! -f "$CHECKLIST" ]; then
 fi
 
 export CHECKLIST
-python3 << 'PYEOF'
-import json, sys
+python << 'PYEOF'
+import json, os, sys
 
 with open(os.environ['CHECKLIST'], 'r', encoding='utf-8') as f:
     cl = json.load(f)
@@ -37,6 +37,9 @@ c_open, h_open, m_open = 0, 0, 0
 c_total, h_total, m_total = 0, 0, 0
 
 for issue in issues:
+    # 改进建议4: 软性发现（P-* 视角建议）不计入 C/H/M 门控（需人工评估，非技术门禁）
+    if str(issue.get('id', '')).startswith('P-'):
+        continue
     sev = issue.get('severity', '').lower()
     status = issue.get('status', 'open')
     counts[status if status in counts else 'other'] += 1

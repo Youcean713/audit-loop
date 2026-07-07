@@ -34,9 +34,10 @@ normalized=$(printf '%s' "$normalized" | sed -E 's|https?://[^ ]+|URL-REMOVED|g'
 normalized=$(printf '%s' "$normalized" | tr '`' "'")
 
 # === Layer 5: 白名单正则 ===
-# C-2 修复：收紧——移除空格和自由文本，仅允许文件路径字符
-# 允许：字母/数字/路径分隔符/通配符（. - _ * ?）/冒号（Windows盘符）
-if ! printf '%s' "$normalized" | grep -qP '^[a-zA-Z0-9/:\\\._\-*?]+$'; then
+# C-7 fix: 原白名单 ^[a-zA-Z0-9/:\\\._\-*?]+$ 拒绝空格和 CJK 字符，
+# 但审计范围是自由文本描述（如"全面审计 src/auth/"），致控制对真实输入总是 FAIL（CWE-693 虚假安全感）。
+# 修复：允许空格 + CJK 字符范围（\x{4e00}-\x{9fff} CJK统一汉字/标点/全角），依赖 Layer 6 黑名单（角色切换/prompt注入/标题注入）防注入。
+if ! printf '%s' "$normalized" | grep -qP '^[a-zA-Z0-9/:\\\._\-*? \x{4e00}-\x{9fff}\x{3000}-\x{303f}\x{ff00}-\x{ffef}]+$'; then
     printf '%s\n' "FAIL: 审计范围含不安全字符（白名单校验失败）"
     exit 1
 fi

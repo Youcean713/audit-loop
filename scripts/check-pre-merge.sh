@@ -30,7 +30,7 @@ for lens in security arch quality perf; do
         # S-1 fix: 用环境变量传递路径，避免单引号包裹未转义导致 Python 注入
         if command -v python3 > /dev/null 2>&1; then
             export FPATH="$fpath"
-            findings_count=$(python3 << 'PYEOF'
+            findings_count=$(python << 'PYEOF'
 import json, os
 try:
     with open(os.environ['FPATH'], 'r', encoding='utf-8') as f:

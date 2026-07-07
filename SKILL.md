@@ -191,7 +191,7 @@ Round 2/3: 验证+增量扫描 → C+H=0? 🟢结束 : 终裁(确认/降级/撤�
 3. **实例初始化（脚本强制，必须在资产分类之前）**: 运行 `bash scripts/setup-instance.sh` 生成 instance_id + 创建输出目录 + lockfile 并发检测。脚本输出 `INSTANCE_ID` 和 `INSTANCE_DIR` 环境变量。后续步骤 (4)(5) 依赖 `$INSTANCE_DIR`。
    > **Why instance_id**: 防止多个审计实例并发运行时输出文件互相覆盖。
    > 审计结束后运行 `bash scripts/cleanup-instance.sh $INSTANCE_DIR` 清理临时文件保留企业产出物。
-   > 🆕 **Hook 集成（Plugin v2.0.0）**: 实例初始化完成后，立即写入审计状态文件供三层 Hook（PreToolUse/SubagentStop/Stop）读取：
+   > 🆕 **Hook 集成（Plugin v2.0.0）**: 实例初始化完成后，立即写入审计状态文件供四层 Hook（PreToolUse/SubagentStop/Stop/PreCompact）读取：
    > ```bash
    > # 编排者: 写入审计状态文件（Hook 与编排者间的共享上下文）
    > # 路径约定: ${CLAUDE_PLUGIN_ROOT}/.audit-state.json（自动解析为插件根目录）
@@ -219,6 +219,7 @@ Round 2/3: 验证+增量扫描 → C+H=0? 🟢结束 : 终裁(确认/降级/撤�
 
 ```
 Agent(
+  subagent_type="audit-loop:perspective-recommender",  # 🚨 必须用具名类型（AP-12 fix），否则 PreToolUse Hook 阻止
   model="sonnet",  # 或 haiku（简单审计）
   prompt="<从 agents/perspective-recommender.md 提取的 prompt，{project_root}/{审计范围}/{max_perspectives} 已替换>"
 )
@@ -289,7 +290,7 @@ Agent(
 | C-1 | Critical | lens-config.md:127 | 白名单正则防御（示例：反引号注入） |
 | H-1 | High | round-details.md:20 | 输出路径无校验 |
 ```
-列出所有 Critical 和 High 问题（含 ID+文件+描述）。Medium 和 Suggestion 可仅列数量。
+列出所有 Critical、High 和 **Medium** 问题（含 ID+文件+描述）——AP-14 门禁要求 Medium 未处理不可 SHIP，必须完整列出供用户决策（AP-17 fix：原格式"Medium 可仅列数量"违反门禁一致性）。Low 和 Suggestion 可仅列数量。
 
 > ⏸️ **用户确认点（不可跳过）**: 问题清单输出后 → **暂停并询问用户**选择「继续修复」还是「停止（仅报告）」。禁止在用户选择前进入修复阶段或输出最终报告。详见下方「用户确认」节。
 >
@@ -311,7 +312,7 @@ Round 1 审计完成。共发现 X Critical + Y High + Z Medium + W Suggestion +
 
 您希望如何继续？
 
-🔧 **继续修复** — 自动修复 Critical 和 High 问题（含视角 High），然后进入验证循环，直到通过或达到退出条件
+🔧 **继续修复** — 自动修复 Critical、High 和 Medium 问题（含视角 High；AP-14 门禁要求 Medium 必须修，不可跳过），然后进入验证循环，直到通过或达退出条件
 📋 **停止（仅报告）** — 跳过修复和验证，直接生成完整审计报告（含 SARIF + 证据链 + 多视角分析）
 
 请选择：[继续修复 / 停止（仅报告）]

@@ -8,11 +8,9 @@
 
 set -euo pipefail
 
-# P1-3: 递归守卫
-_GUARD="/tmp/audit-loop-hook-$$-$(basename "$0")"
-[ -f "$_GUARD" ] && exit 0
-touch "$_GUARD"
-trap 'rm -f "$_GUARD"' EXIT
+# C-8 fix: source 共享 helper 库（_jf + 递归守卫），消除重复（PERF-2/PERF-3 fix）
+source "$(dirname "$0")/audit-state.sh" || exit 0
+_audit_loop_guard || exit 0
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 STATE_FILE="${PLUGIN_ROOT}/.audit-state.json"
@@ -22,12 +20,8 @@ if [ ! -f "$STATE_FILE" ]; then
     exit 0
 fi
 
-# 读取 instance_dir
-if command -v jq >/dev/null 2>&1; then
-    INSTANCE_DIR=$(jq -r '.instance_dir // ""' "$STATE_FILE" 2>/dev/null || echo "")
-else
-    INSTANCE_DIR=$(python -c "import json; d=json.load(open('$STATE_FILE','r',encoding='utf-8')); print(d.get('instance_dir',''))" 2>/dev/null || echo "")
-fi
+# 读取 instance_dir（C-3/C-8 fix: 用共享库 _jf helper，消除注入风险 + 重复）
+INSTANCE_DIR=$(_jf "$STATE_FILE" instance_dir "")
 
 if [ -z "$INSTANCE_DIR" ] || [ ! -d "$INSTANCE_DIR" ]; then
     exit 0  # 无有效实例，放行
