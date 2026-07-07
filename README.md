@@ -5,8 +5,8 @@
 ## 安装
 
 ```bash
-# 1. 添加市场（SSH）
-/plugin marketplace add git@gitlab.hopechart.com:wenxiang.you/audit-loop.git
+# 1. 添加市场
+/plugin marketplace add Youcean713/audit-loop
 
 # 2. 安装插件
 /plugin install audit-loop@audit-loop-marketplace
@@ -14,16 +14,11 @@
 
 ### 团队项目自动安装
 
-在项目的 `.claude/settings.json` 中：
-
 ```json
 {
   "extraKnownMarketplaces": {
-    "audit-loop-marketplace": {
-      "source": {
-        "source": "git",
-        "url": "git@gitlab.hopechart.com:wenxiang.you/audit-loop.git"
-      }
+    "audit-loop": {
+      "source": {"source": "github", "repo": "Youcean713/audit-loop"}
     }
   },
   "enabledPlugins": {
