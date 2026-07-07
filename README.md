@@ -4,17 +4,9 @@
 
 ## 安装
 
-### GitHub / GitLab 用户
-
 ```bash
 # 1. 添加市场
-/plugin marketplace add <你的仓库URL>
-
-# GitHub 用户:
-/plugin marketplace add Youcean713/audit-loop
-
-# GitLab 用户:
-/plugin marketplace add https://gitlab.com/<用户名>/audit-loop
+/plugin marketplace add https://gitlab.hopechart.com/wenxiang.you/audit-loop
 
 # 2. 安装插件
 /plugin install audit-loop@audit-loop-marketplace
@@ -30,7 +22,7 @@
     "audit-loop": {
       "source": {
         "source": "git",
-        "url": "https://gitlab.com/<用户名>/audit-loop.git"
+        "url": "https://gitlab.hopechart.com/wenxiang.you/audit-loop.git"
       }
     }
   },
@@ -54,7 +46,7 @@
 - **多模型覆盖**: fable/opus/sonnet/haiku — 4 种模型覆盖 4 个透镜
 - **双模式**: 简单审计（2 合并透镜）和全面审计（4 独立透镜 + 视角）
 - **自动循环**: 发现 → 修复 → 验证 → 收敛自适应迭代
-- **三层 Hook 强制执行**: PreToolUse（spawn 前置）+ SubagentStop（输出验证）+ Stop（完整性门控）
+- **三层 Hook 强制执行**: PreToolUse + SubagentStop + Stop
 - **企业级输出**: 3 份角色报告 + SARIF + 证据链
 
 ## 许可
