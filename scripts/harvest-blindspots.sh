@@ -32,10 +32,14 @@ echo "库目录: $LIBRARY_DIR"
 echo ""
 
 # 使用临时文件传递 Python 代码，避免 bash 转义问题
-# Cross-platform temp file (mktemp not available on Windows Git Bash)
-PYTHON_SCRIPT="${TMPDIR:-/tmp}/audit-loop-py-$$-$(date +%s).tmp"
+# C-2 fix: mktemp 优先（消除 CWE-377 可预测路径），不可用时 $$ + RANDOM 兜底
+if command -v mktemp >/dev/null 2>&1; then
+    PYTHON_SCRIPT=$(mktemp "${TMPDIR:-/tmp}/audit-loop-py-XXXXXX")
+else
+    PYTHON_SCRIPT="${TMPDIR:-/tmp}/audit-loop-py-$$-${RANDOM}-$(date +%s).tmp"
+fi
 cat > "$PYTHON_SCRIPT" << 'PYEOF'
-import json, os, sys, hashlib
+import json, os, re, sys, hashlib
 from datetime import datetime, timezone
 
 instance_dir = sys.argv[1]
@@ -166,11 +170,13 @@ def is_safe(bs):
     # M-3 fix: 检查所有持久化字段（原仅检 description+code_excerpt，trigger_condition/file 等字段可持久化二阶注入载荷到盲区库）
     fields_to_check = ['description', 'code_excerpt', 'trigger_condition', 'file', 'line_range', 'cwe_id', 'dimension', 'source', 'severity']
     combined = ' '.join(str(bs.get(f, '')) for f in fields_to_check).lower()
+    # H-3 fix: 空白字符归一化——合并连续空白为单个空格，防空格/Tab/换行绕过
+    collapsed = re.sub(r'\s+', ' ', combined).strip()
     for pattern in INJECTION_PATTERNS:
-        if pattern.lower() in combined:
+        if pattern.lower() in collapsed:
             return False
     # 拒绝含 URL 的条目
-    if 'http://' in combined or 'https://' in combined:
+    if 'http://' in collapsed or 'https://' in collapsed:
         return False
     return True
 

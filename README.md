@@ -289,7 +289,7 @@ audit-loop/
 | **实例管理** | setup-instance.sh, cleanup-instance.sh | instance_id 生成 + 并发 lockfile |
 | **资产分析** | classify-assets.sh, detect-supply-chain.sh | 9 类资产分类 + SBOM 生成 |
 | **审计执行** | check-pre-lens.sh, check-pre-merge.sh, check-pre-verify.sh | 阶段前置条件强制 |
-| **修复校验** | pre-fix-impact.sh, consistency-check.sh, enforce-medium-handled.sh | 影响分析 + 5 项一致性 + Medium 处理 |
+| **修复校验** | pre-fix-impact.sh, consistency-check.sh, enforce-medium-handled.sh | 影响分析 + 6 项一致性 + Medium 处理 |
 | **收敛判定** | compute-blast-radius.sh, determine-convergence.sh | 变更影响 + Case A/B/C 分支 |
 | **退出裁决** | compute-exit-verdict.sh, check-overridable.sh | 8 条决策树 + overridable 残留 |
 | **企业输出** | compute-risk-score.sh, generate-sarif.sh, generate-evidence-chain.sh, generate-final-report.sh | 风险分+SARIF+证据链+报告 |

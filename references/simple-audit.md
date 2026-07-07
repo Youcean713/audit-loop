@@ -45,11 +45,7 @@ Round 2/3: 编排者验证 → C+H=0? 🟢结束 : 🔵自动进入下一轮
 1. 用 `Glob` 扫描项目文件树，统计文件数量和类型。
 2. 检测是否为 git 仓库。
 3. 若用户已明确指定范围 → 直接进入。仅当范围模糊时向用户确认。
-4. 根据文件数量选 Token 档位：
-   - 小型（≤10 文件）：单轮 80K / 累计 200K
-   - 中型（≤50 文件）：单轮 150K / 累计 400K
-   - 大型（>50 文件）：单轮 300K / 累计 800K
-   > 阈值与 SKILL.md/guardrails.md 保持同步。视角系统已计入 ~25% Token 开销。
+4. 运行 `bash scripts/select-token-tier.sh <file_count> simple` 自动选择 Token 档位。权威阈值见 `references/guardrails.md`。
 5. 确保 `.claude/cache/audit-context/` 目录存在。
 
 ### Step 0b: 视角推荐（简单审计版）🆕
@@ -297,13 +293,7 @@ Agent(model="sonnet",
 
 ## Token 守卫（简单审计版）
 
-| 档位 | 审计范围 | 单轮阈值 | 累计阈值 |
-|------|----------|---------|---------|
-| 小型 | ≤10 文件 | 80K | 200K |
-| 中型 | ≤50 文件 | 150K | 400K |
-| 大型 | >50 文件 | 300K | 800K |
-
-> 简单审计 3-5 次 Agent spawn（2 技术透镜 + 0-1 视角推荐 + 0-1 视角透镜 + 最多 1 验证）。阈值与 SKILL.md/guardrails.md 同步更新，视角系统增加 ~25% Token 开销。
+> Token 守卫阈值权威来源为 `references/guardrails.md`。运行时由 `select-token-tier.sh` 自动选择档位。
 
 - 单轮超阈值 → 跳过后续循环，输出当前报告 + ⚠️
 - 累计超阈值 → 强制终止

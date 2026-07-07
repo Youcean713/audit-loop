@@ -159,8 +159,8 @@ if os.path.exists(checklist_path):
     # C-1 fix: 兼容 'findings' 和 'issues' 两种键名
     issues_list = checklist.get('issues', checklist.get('findings', []))
     for issue in issues_list:
-        # 改进建议4: 软性发现（P-* 视角建议）不计入门控（避免视角建议阻塞技术 SHIP）
-        if str(issue.get('id', '')).startswith('P-'):
+        # M-5 fix: 软性发现统一筛选——P-前缀 + type=soft（避免视角建议阻塞技术 SHIP）
+        if str(issue.get('id', '')).startswith('P-') and issue.get('type', '') == 'soft':
             continue
         cvss = issue.get('cvss_score', 0)
         if isinstance(cvss, (int, float)) and cvss > cvss_max:

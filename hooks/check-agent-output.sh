@@ -21,7 +21,11 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 if command -v jq >/dev/null 2>&1; then
     AGENT_TYPE=$(echo "$STDIN_DATA" | jq -r '.agent_type // ""' 2>/dev/null || echo "")
 else
-    AGENT_TYPE=$(echo "$STDIN_DATA" | python -c "import json,sys; print(json.load(sys.stdin).get('agent_type',''))" 2>/dev/null || echo "")
+    AGENT_TYPE=$(echo "$STDIN_DATA" | python << 'PYEOF'
+import json, sys
+print(json.load(sys.stdin).get('agent_type', ''))
+PYEOF
+)
 fi
 
 # 无 agent_type 或非 audit-loop 前缀 → 放行（非审计场景）

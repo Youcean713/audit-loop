@@ -23,18 +23,34 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 
 # ===== 1. 判断是否 audit-loop Agent =====
 # PreToolUse Hook 的 stdin 包含 tool_name 和 tool_input
-TOOL_NAME=$(echo "$STDIN_DATA" | python -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_name',''))" 2>/dev/null || echo "")
+TOOL_NAME=$(echo "$STDIN_DATA" | python << 'PYEOF'
+import json, sys
+d = json.load(sys.stdin)
+print(d.get('tool_name', ''))
+PYEOF
+)
 
 if [ "$TOOL_NAME" != "Agent" ] && [ "$TOOL_NAME" != "Task" ]; then
     exit 0  # 不是 Agent spawn，放行
 fi
 
 # 提取 Agent prompt 和 subagent_type（双信号判断）
-AGENT_PROMPT=$(echo "$STDIN_DATA" | python -c "import json,sys; d=json.load(sys.stdin); ti=d.get('tool_input',{}); print(ti.get('prompt',''))" 2>/dev/null || echo "")
+AGENT_PROMPT=$(echo "$STDIN_DATA" | python << 'PYEOF'
+import json, sys
+d = json.load(sys.stdin)
+ti = d.get('tool_input', {})
+print(ti.get('prompt', ''))
+PYEOF
+)
 if command -v jq >/dev/null 2>&1; then
     SUBAGENT_TYPE=$(echo "$STDIN_DATA" | jq -r '.tool_input.subagent_type // ""' 2>/dev/null || echo "")
 else
-    SUBAGENT_TYPE=$(echo "$STDIN_DATA" | python -c "import json,sys; ti=json.load(sys.stdin).get('tool_input',{}); print(ti.get('subagent_type',''))" 2>/dev/null || echo "")
+    SUBAGENT_TYPE=$(echo "$STDIN_DATA" | python << 'PYEOF'
+import json, sys
+ti = json.load(sys.stdin).get('tool_input', {})
+print(ti.get('subagent_type', ''))
+PYEOF
+)
 fi
 
 # 判断是否 audit-loop（双信号：subagent_type 前缀 + prompt 特征）

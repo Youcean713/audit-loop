@@ -5,12 +5,6 @@ tools: Glob, Grep, Read, Write
 # tools 字段运行时强制（需通过 subagent_type 调用生效，AP-15 fix）。
 # 已知平台 bug（tools 可能被绕过）见 references/known-issues.md，由 PreToolUse Hook 兜底。
 # 插件 Agent 不支持 hooks/mcpServers/permissionMode frontmatter 字段（平台限制）。
-
-  # 角色特化 (lens-architecture): 负责跨文件一致性
-  # 文档数量声称易与实际漂移——已用 consistency-check.sh 机械验证
-  # Agent frontmatter tools 声明仅记录设计意图，不约束运行时
-  # 实施忠实度需逐项计数验证
-# 平台级防护依赖 PreToolUse Hook 或 settings.json deny 规则。
 model: sonnet
 disallowedTools: Bash, Edit, Agent
 maxTurns: 30
@@ -40,7 +34,7 @@ effort: high
 ## 📋 输入契约（前置条件）
 
 执行前用 Read 工具验证：
-- `$INSTANCE_DIR/asset-inventory.json` 存在
+- `{instance_dir}/asset-inventory.json` 存在
 - 审计范围字符串不含反引号 / `system:` / `assistant:` 等注入特征
 
 ## 📤 输出契约（后置自检）

@@ -27,17 +27,16 @@ _jf() {
     fi
 }
 
-# === 递归守卫（Dich01 生产案例模式，防 Hook 在子 Agent 内循环触发）===
+# === 递归守卫（C-1 fix: 环境变量替代文件守卫，消除 CWE-377 可预测路径攻击面）===
 # 用法: _audit_loop_guard || exit 0  （在 Hook 开头调用，source 之后）
-# 原理: 用 PID+脚本名生成守卫文件，已存在则返回 1（放行防递归），否则创建并 trap 清理
-_AUDIT_LOOP_GUARD_FILE=""
+# 原理: 用进程环境变量标记——bash 子进程继承 env，递归调用时已设置则跳过。
+#       消除文件系统攻击面（/tmp 可预测路径、PID 回绕、符号链接攻击）。
+_AUDIT_LOOP_GUARD_SET_ENV=""
 _audit_loop_guard() {
-    _AUDIT_LOOP_GUARD_FILE="/tmp/audit-loop-hook-$$-$(basename "$0")"
-    if [ -f "$_AUDIT_LOOP_GUARD_FILE" ]; then
+    if [ "${_AUDIT_LOOP_GUARD_SET:-}" = "1" ]; then
         return 1  # 已在执行，放行（防递归）
     fi
-    touch "$_AUDIT_LOOP_GUARD_FILE"
-    trap 'rm -f "$_AUDIT_LOOP_GUARD_FILE"' EXIT
+    export _AUDIT_LOOP_GUARD_SET=1
     return 0
 }
 
@@ -47,6 +46,10 @@ _audit_loop_state_file() {
 }
 
 # === 检查是否在审计上下文（状态文件存在且未过期 2h）===
+# L-9 fix: 状态文件设计说明——编排者在各阶段迁移时写入 phase/round/pending_user_confirmation。
+# Hook 消费者: check-audit-complete.sh（读取 phase + pending_user_confirmation 决定 block/静默），
+# check-agent-spawn.sh（通过文件存在性推导审计上下文）。其余 Hook 通过 agent 输出路径推导阶段。
+# 注意: 编排者每阶段写入是"推送"模式——Hook 不主动轮询，写多读少是设计选择（可靠写入 > Hook 轮询开销）。
 is_audit_active() {
     local state_file
     state_file=$(_audit_loop_state_file)

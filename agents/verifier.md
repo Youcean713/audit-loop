@@ -29,8 +29,8 @@ effort: high
 
 执行本任务前，**必须用 Read 工具**验证：
 
-- `$INSTANCE_DIR/checklist-round-1.json` 存在且含 `issues` 数组
-- `$INSTANCE_DIR/blast-radius.json` 存在（如果 Mode C/A 都需 blast-radius）
+- `{instance_dir}/checklist-round-1.json` 存在且含 `issues` 数组
+- `{instance_dir}/blast-radius.json` 存在（如果 Mode C/A 都需 blast-radius）
 - 至少 1 个 issue 的 `status` 为 `fix_attempted`（Round 2 验证必须建立在已修复的基础上）
 
 **契约不满足的处置**：

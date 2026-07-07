@@ -28,7 +28,7 @@ for lens in security arch quality perf; do
     else
         # 验证 findings 字段
         # S-1 fix: 用环境变量传递路径，避免单引号包裹未转义导致 Python 注入
-        if command -v python3 > /dev/null 2>&1; then
+        if command -v python > /dev/null 2>&1; then
             export FPATH="$fpath"
             findings_count=$(python << 'PYEOF'
 import json, os
@@ -49,6 +49,8 @@ PYEOF
             else
                 printf '%s\n' "✅ lens-$lens.json: $findings_count 条 finding"
             fi
+        else
+            printf '%s\n' "⚠️  lens-$lens.json: Python 不可用，跳过发现计数验证（仅检查文件存在性）"
         fi
     fi
 done

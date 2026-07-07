@@ -129,7 +129,7 @@
 }
 ```
 
-> 完整 Hook 配置示例见 `settings.hook-example.json`。实际 Hook condition 语法取决于 Claude Code PreToolUse Hook 的具体实现。
+> Hook 配置格式由 hooks/hooks.json 定义，Hook condition 语法取决于 Claude Code PreToolUse Hook 的具体实现。
 
 ### 第二层: Lens Agent stdout 输出（skill 级改进方向）
 

@@ -62,10 +62,11 @@
 | `validate-perspective-output.sh` | Step 0b | 视角输出安全验证（C-4） | 0=PASS, 1=拒绝 |
 | `mechanical-dedup.sh` | Step 2 降级 | 合并审查官降级去重 | 0=成功 |
 | `pre-fix-impact.sh` | 修复前 | grep 影响分析 | 0=找到 |
-| `consistency-check.sh` | 修复后 | 5 项一致性校验 | 0=通过, 1=不一致 |
+| `consistency-check.sh` | 修复后 | 6 项一致性校验（含 Check 6 幽灵引用检测） | 0=通过, 1=不一致 |
 | `compute-risk-score.sh` | 去重后 | 风险评分公式 | 0=成功 |
 | `generate-diff-table.sh` | Round 2/3 | 差异对比表 | 0=成功 |
 | `check-overridable.sh` | 🟡后 | overridable 残留检查 | 0=无残留, 1=有残留 |
+| `enforce-medium-handled.sh` | 退出裁决前 | AP-14 Medium 处理强制检查 | 0=全部处理, 1=有未处理 |
 | `compute-blast-radius.sh` | Round 2 前 | 变更文件+import链+配置文件 | 0=成功 |
 | `match-issues.sh` | 重审后 | 跨轮 issue 相似度匹配 | 0=成功 |
 | `compute-exit-verdict.sh` | 退出 | 门控决策树（最关键） | 0=SHIP/CAUTION, 1=HOLD, 2=BLOCK |

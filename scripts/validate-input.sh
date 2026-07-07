@@ -11,13 +11,14 @@ if [ -z "$INPUT" ]; then
     exit 1
 fi
 
-# === Layer 1: NFKC 标准化 ===
-normalized=$(python -c "
-import unicodedata, sys
-s = sys.argv[1]
+# === Layer 1: NFKC 标准化（H-4 fix: python -c "..." → heredoc + os.environ）===
+normalized=$(INPUT_VAL="$INPUT" python << 'PYEOF' 2>/dev/null
+import unicodedata, os
+s = os.environ['INPUT_VAL']
 s = unicodedata.normalize('NFKC', s)
 print(s)
-" "$INPUT" 2>/dev/null) || {
+PYEOF
+) || {
     printf '%s\n' "FAIL: NFKC 标准化失败（Python 不可用）"
     exit 1
 }
@@ -79,16 +80,17 @@ if printf '%s' "$check" | grep -qF '..' 2>/dev/null; then
     exit 1
 fi
 
-# 6f. Unicode 控制字符（Python）
-has_unicode=$(python -c "
-import sys
-s = sys.argv[1]
+# 6f. Unicode 控制字符（H-4 fix: heredoc + os.environ）
+CHECK_VAL="$normalized" python << 'PYEOF' 2>/dev/null
+import os
+s = os.environ['CHECK_VAL']
 bad = any(ord(c) in {0x200B, 0x200C, 0x200D, 0xFEFF, 0x2028} for c in s)
-sys.exit(1 if bad else 0)
-" "$normalized" 2>/dev/null) || {
+__import__('sys').exit(1 if bad else 0)
+PYEOF
+if [ $? -ne 0 ]; then
     printf '%s\n' "FAIL: 审计范围含不安全字符: Unicode 控制字符"
     exit 1
-}
+fi
 
 printf '%s\n' "PASS"
 exit 0

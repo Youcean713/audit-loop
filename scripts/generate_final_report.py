@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # audit-loop 最终报告生成器（中文，固定格式）
 # 用法: python scripts/generate_final_report.py <instance_dir> [output_path]
 # 输出: 报告 MD 文本到 stdout，同时写入文件
@@ -233,8 +233,9 @@ def main():
 
     current_sev = None
     for issue in findings:
-        # Skip soft findings (no severity field) in technical section
-        if 'severity' not in issue:
+        # Skip soft findings — unified check (M-5 fix): P- prefix AND (type=soft OR no severity)
+        iid = str(issue.get('id', ''))
+        if iid.startswith('P-') and (issue.get('type') == 'soft' or 'severity' not in issue):
             continue
         sev = issue['severity']
         if sev != current_sev:

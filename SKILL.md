@@ -25,24 +25,8 @@ allowed-tools: [Agent, Glob, Read, Write, Edit, Bash, Grep]
 
 ### 两种模式对比（用于向用户展示）
 
-> 权威来源: `references/mode-comparison.md`。SKILL.md 保留此表用于用户交互展示。
-
-| 维度 | 🔍 简单审计 | 🔬 全面审计 |
-|------|-----------|-----------|
-| 审计覆盖 | **4 维度全覆盖**（安全+架构+质量+性能） | **4 维度全覆盖**（安全+架构+质量+性能） |
-| 透镜 Agent | **2 个合并 Agent**（S+A 用 sonnet，Q+P 用 haiku） | 4 个独立 Agent（安全=fable/架构=sonnet/质量=sonnet/性能=haiku——3 种模型覆盖 4 透镜） |
-| 视角透镜 | 0-1 个合并 Agent（haiku），上限 3 视角 | 0-5 个独立 Agent（sonnet/haiku），每视角一个 |
-| 去重合并 | 编排者机械去重 | 专用合并审查官 Agent（四级审查：去重+跨文件一致性+盲区+补盲） |
-| 修复循环 | ✅ 自动修复 | ✅ 自动修复 |
-| 验证 | 编排者验证 + 条件深度验证 Agent | 专用验证+终裁 Agent |
-| 盲区分析 | ❌ | ✅ 交叉遗漏检测 |
-| Blast-Radius | 简化版（变更文件+同目录配置文件） | ✅ git diff + grep import 全量扫描 |
-| 退出灯 | 🟢🟡🔵🔴 四灯 | 🟢🟡🔵🔴 四灯 |
-| 自动推进 | ✅ 全自动循环 | ✅ 全自动循环 |
-| Agent spawn | **3-5 次**（2 技术透镜 + 0-1 视角推荐 + 0-1 视角透镜 + 最多 1 验证） | **7-13 次**（4 技术透镜 + 0-1 视角推荐 + 0-5 视角透镜 + 1 合并审查官 + 1-2 验证） |
-| **耗时** | **8-15 分钟** | **20-25 分钟** |
-| **适用场景** | 日常改动检查、PR 前审查、常规审计 | 关键模块上线、安全合规、重构后深度验证 |
-
+> **两种模式**: 全面审计用 4 个独立 Agent（fable + sonnet + sonnet + haiku）+ 专用合并审查官 + 验证终裁，简单审计用 2 个合并 Agent（sonnet + haiku）+ 编排者机械去重。完整对比见 `references/mode-comparison.md`。
+>
 > **关键设计原则**：简单审计的"简单"指流程精简（合并模块、减少 Agent spawn），不是审计质量降级。
 > 两个合并透镜覆盖的审计清单与全面审计 4 个独立透镜**完全相同**。
 
@@ -152,7 +136,7 @@ Round 2/3: 编排者验证 → C+H=0? 🟢 : 🔵自动继续
 - **存在完整修复验证循环**：与全面审计相同的 🟢🟡🔵🔴 四灯 + 自动推进
 - **验证采用分层策略**：编排者先做轻量验证，满足以下任一条件时 spawn 深度验证 Agent：（1）总 Critical > 0、（2）总 C+H 较上一轮无减少或增加、（3）置信度为 low 的 issue 超过 2 个
 - 简单审计执行前 → 读 `references/simple-audit.md` + `references/lens-config.md`「简单审计 Agent 配置」节
-- Token 守卫阈值：小型 80K/轮(累计200K) · 中型 150K/轮(累计400K) · 大型 300K/轮(累计800K)（与 guardrails.md 同步，视角系统已计入）
+- Token 守卫阈值见 `references/guardrails.md`——运行时由 `select-token-tier.sh` 自动选择档位
 
 ---
 
@@ -370,7 +354,7 @@ Round 1 审计完成。共发现 X Critical + Y High + Z Medium + W Suggestion +
 - **exit 1（🔴 发现不一致）** → 按脚本输出的具体文件和行号逐项修复 → 重跑脚本。最多 3 轮。
 - **exit 2（⚠️ 3轮后仍未通过）** → 标记 `consistency_gap` 并在报告中标注，不阻塞流程。
 
-脚本覆盖 5 项检查：数值声称一致性、模型列一致性、占位符一致性、引用有效性、修复范围校验。**此步骤不可跳过，不可委托 Agent。**
+脚本覆盖 6 项检查：数值声称一致性、模型列一致性、占位符一致性、引用有效性、修复范围校验、幽灵引用检测。**此步骤不可跳过，不可委托 Agent。**
 
 > 完整修复规则（修复引入错误处理、回滚策略）见 `references/fix-phase.md`。
 
@@ -380,6 +364,7 @@ Round 1 审计完成。共发现 X Critical + Y High + Z Medium + W Suggestion +
 
 > 🚨 **前置条件**: 修复阶段已标记所有可修复 issue 为 `fix_attempted`。checklist JSON 已更新。
 > 🆕 **收敛自适应策略**: Round 2/3 根据收敛情况选择重审深度。核心洞察——**快收敛 = 审计可能浅 = 需深度重审；慢收敛 = 审计已找到真问题 = 专注修复**。
+> 📖 **L-3 fix**: 详细步骤、Agent prompt 模板见 `references/round-2-3.md`。SKILL.md 保留决策树概览用于快速导航，`determine-convergence.sh` 输出 CASE=A|B|C 统一判定。
 
 ### Step 1: 计算修复 blast-radius（脚本强制）
 
@@ -625,35 +610,4 @@ Round 2/3 终裁后
 
 ## 完整示例
 
-**用户输入**: "全面审计一下 src/auth/，有问题就修掉"
-
-**Skill 执行过程**:
-```
-Step 0: Glob 扫描 → 15 个文件，中型档位 → 用户确认全量审计
-Round 1 Step 1: spawn 4 透镜 Agent 并行审计
-  → lens-security 发现: C-1(HardcodedSecret), H-1(WeakHash)
-  → lens-quality 发现: H-2(MissingErrorHandler)
-  → lens-arch 发现: M-1(TightCoupling)
-  → lens-perf 发现: M-2(N+1Query)
-Round 1 Step 2-3: 去重 + 审查官 → 无额外盲区
-Round 1 最终 checklist: C-1, H-1, H-2, M-1, M-2 (5 issues)
-
-主 Claude 修复 C-1, H-1, H-2 后进入 Round 2
-
-Round 2: Agent 逐项验证
-  → C-1: Resolved ✅
-  → H-1: Resolved ✅
-  → H-2: Persisting 🔁 (修复不彻底)
-  → M-1: Resolved ✅
-  → M-2: Resolved ✅
-  Blast-Radius 增量扫描: 发现新问题 C-2(修复 H-1 引入的 XSS)
-  C+H = C-2(1) + H-2(1) = 2 < 上轮 3，但发现新问题 → 进入 Round 3
-
-Round 3: 终裁
-  → C-2: Persisting (确认存在) → 降级为 H (误判严重度)
-  → H-2: 确认存在
-  最终: C-0, H-2 → 🟡 黄灯
-
-最终输出: "审计 src/auth/ 完成。3 轮循环。自动修复解决了 3 个问题，
-2 个中优先级问题需人工关注：H-2(错误处理不完整), H-3(原 C-2 降级，XSS 风险)。"
-```
+> 典型审计流程示例见 `references/round-1.md`（Round 1 透镜 spawn）、`references/fix-phase.md`（修复阶段）、`references/round-2-3.md`（收敛验证+终裁）。完整端到端流程参考 `references/mode-comparison.md`。

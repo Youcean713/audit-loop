@@ -117,7 +117,12 @@ import json, sys
 print(json.dumps({'decision':'block','reason':sys.argv[1],'instance_dir':sys.argv[2],'phase':sys.argv[3]}))
 " "$BLOCK_REASON" "$INSTANCE_DIR" "${PHASE:-}"
 
-# 兜底：stderr + exit 2（本地 skills/ 安装场景可靠）
+# M-13 fix: pending_user_confirmation 时仅输出结构化 JSON（不写 stderr 避免淹没用户交互提示）
+if [ "$PENDING_CONFIRMATION" = "True" ] || [ "$PENDING_CONFIRMATION" = "true" ]; then
+    exit 2  # 静默退出——structured JSON 已告知编排者状态
+fi
+
+# 兜底：stderr + exit 2（非确认等待场景）
 printf '%s\n' "🚨 audit-loop Stop Hook: 审计未完成，阻止会话退出" >&2
 printf '%s\n' "$BLOCK_REASON" >&2
 printf '%s\n' "实例目录: ${INSTANCE_DIR}" >&2

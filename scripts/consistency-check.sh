@@ -3,6 +3,9 @@
 # 用途: 修复阶段完成后、Round 2 前强制执行。发现不一致 → 立即修复 → 重跑。最多 3 轮。
 # 用法: bash scripts/consistency-check.sh
 # 退出码: 0 = 全部通过, 1 = 发现不一致(需修复后重跑), 2 = 3轮后仍未通过
+# L-1 note: Check 1-6 对同组 REF_FILES 执行多次独立 grep（每次重读磁盘）。
+# 对中小项目（<1000 文件）I/O 开销可忽略——OS buffer cache 自动缓存首次读取后的文件内容。
+# 大型项目优化方向: 单次 grep -f patterns.txt 合并匹配，或使用 rg --file patterns.txt。
 
 set -euo pipefail
 
@@ -13,25 +16,6 @@ ROUND="${1:-1}"
 echo "=== audit-loop 一致性校验 (Round $ROUND) ==="
 echo ""
 
-# 辅助函数: grep 所有目标文件，验证指定值出现且无不一致值
-# 用法: check_value "<label>" "<expected_value>" "<wrong_pattern>" <files...>
-check_value() {
-    local label="$1"
-    local expected="$2"
-    local wrong="$3"
-    shift 3
-    local files=("$@")
-
-    local wrong_matches
-    wrong_matches=$(grep -rn "$wrong" "${files[@]}" 2>/dev/null | grep -v "原分配\|降级.*→\|变更原因\|grep.*示例\|docs/\|历史\|演进\|模型分配历史" || true)
-
-    if [ -n "$wrong_matches" ]; then
-        echo "  ❌ $label: 发现不一致值:"
-        echo "$wrong_matches" | while read -r line; do echo "    $line"; done
-        return 1
-    fi
-    return 0
-}
 
 # Check 1: 数值声称一致性
 echo "[1/5] 数值声称一致性..."
@@ -42,7 +26,7 @@ REF_FILES=("$SKILL_DIR/SKILL.md" "$SKILL_DIR/references/simple-audit.md" "$SKILL
 
 # 简单审计 Token 阈值 (权威值来自 guardrails.md)
 # 验证所有文件中简单审计相关阈值一致为 80K/150K/300K
-SIMPLE_WRONG=$(grep -rn "简单.*[^0-9]\(100\|250\|600\)[^0-9]*K.*单轮\|简单.*单轮.*\(100\|250\|600\)[^0-9]*K" "${REF_FILES[@]}" 2>/dev/null | grep -v "全面\|累计" || true)
+SIMPLE_WRONG=$(grep -rnP "简单.*(?<!\d)(100|250|600)K.*单轮|简单.*单轮.*(?<!\d)(100|250|600)K" "${REF_FILES[@]}" 2>/dev/null | grep -v "全面\|累计" || true)
 if [ -n "$SIMPLE_WRONG" ]; then
     echo "  ❌ 简单审计Token阈值: 发现非标准值(应为80K/150K/300K):"
     echo "$SIMPLE_WRONG"
@@ -50,7 +34,7 @@ if [ -n "$SIMPLE_WRONG" ]; then
 fi
 
 # 全面审计 Token 阈值 (权威值来自 guardrails.md)
-FULL_WRONG=$(grep -rn "全面.*[^0-9]\(80\|150\|300\)[^0-9]*K.*单轮\|全面.*单轮.*\(80\|150\|300\)[^0-9]*K" "$SKILL_DIR/SKILL.md" "$SKILL_DIR/references/guardrails.md" "$SKILL_DIR/references/mode-comparison.md" 2>/dev/null | grep -v "简单\|累计" || true)
+FULL_WRONG=$(grep -rnP "全面.*(?<!\d)(80|150|300)K.*单轮|全面.*单轮.*(?<!\d)(80|150|300)K" "$SKILL_DIR/SKILL.md" "$SKILL_DIR/references/guardrails.md" "$SKILL_DIR/references/mode-comparison.md" 2>/dev/null | grep -v "简单\|累计" || true)
 if [ -n "$FULL_WRONG" ]; then
     echo "  ❌ 全面审计Token阈值: 发现非标准值(应为100K/250K/600K):"
     echo "$FULL_WRONG"
@@ -176,14 +160,20 @@ else
     echo "  ⚠️  非 git 仓库，跳过范围校验"
 fi
 
-# Check 6: 幽灵引用检测（AP-18 fix: truth-registry 引用但不存在的脚本/文件，类似 C-6 模式）
-echo "[6/6] 幽灵引用检测（AP-18）..."
+# Check 6: 幽灵引用检测（L-5 fix: 扩展扫描范围至所有引用密集文件，不限于 truth-registry）
+echo "[6/6] 幽灵引用检测..."
 GHOST_REFS=0
-for script in $(grep -oP 'scripts/[a-z_-]+\.sh' "$SKILL_DIR/references/truth-registry.md" 2>/dev/null | sort -u); do
-    [ -f "$SKILL_DIR/$script" ] || { echo "  ❌ 幽灵脚本: $script（truth-registry 引用但不存在）"; GHOST_REFS=$((GHOST_REFS + 1)); }
-done
-for ref in $(grep -oP 'references/[a-z_-]+\.md' "$SKILL_DIR/references/truth-registry.md" 2>/dev/null | sort -u); do
-    [ -f "$SKILL_DIR/$ref" ] || { echo "  ❌ 幽灵文件: $ref（truth-registry 引用但不存在）"; GHOST_REFS=$((GHOST_REFS + 1)); }
+# 扫描文件列表: truth-registry（权威注册表）+ SKILL.md（编排主文档）+ guardrails.md（引用密集）
+GHOST_SCAN_FILES=("$SKILL_DIR/references/truth-registry.md" "$SKILL_DIR/SKILL.md" "$SKILL_DIR/references/guardrails.md" "$SKILL_DIR/README.md")
+for scan_file in "${GHOST_SCAN_FILES[@]}"; do
+    [ -f "$scan_file" ] || continue
+    fname=$(basename "$scan_file")
+    for script in $(grep -oP 'scripts/[a-z_-]+\.(sh|py)' "$scan_file" 2>/dev/null | sort -u); do
+        [ -f "$SKILL_DIR/$script" ] || { echo "  ❌ 幽灵脚本: $script（$fname 引用但不存在）"; GHOST_REFS=$((GHOST_REFS + 1)); }
+    done
+    for ref in $(grep -oP 'references/[a-z_-]+\.md' "$scan_file" 2>/dev/null | sort -u); do
+        [ -f "$SKILL_DIR/$ref" ] || { echo "  ❌ 幽灵文件: $ref（$fname 引用但不存在）"; GHOST_REFS=$((GHOST_REFS + 1)); }
+    done
 done
 if [ "$GHOST_REFS" -eq 0 ]; then
     echo "  ✅ 无幽灵引用"
@@ -194,13 +184,20 @@ fi
 echo ""
 echo "=== 结果: $FAILURES/6 项不一致 ==="
 
+# M-6 fix: 3轮失败时列出具体失败的检查项和建议修复顺序
 if [ "$ROUND" -ge 3 ] && [ "$FAILURES" -gt 0 ]; then
     echo "⚠️  3 轮校验后仍有不一致，标记 consistency_gap"
+    echo ""
+    echo "失败详情:"
+    [ -n "${FAILED_CHECKS:-}" ] && echo "$FAILED_CHECKS" || echo "  (检查详情不可用，请单独运行各 Check)"
+    echo ""
+    echo "建议: 优先处理 Check 1(数值声称) > Check 2(模型列) > Check 4(引用有效性) > Check 6(幽灵引用)"
     exit 2
 fi
 
 if [ "$FAILURES" -gt 0 ]; then
     echo "🔴 需要修复后重跑 (round $((ROUND + 1))/3)"
+    [ -n "${FAILED_CHECKS:-}" ] && echo "$FAILED_CHECKS"
     exit 1
 else
     echo "🟢 全部通过"

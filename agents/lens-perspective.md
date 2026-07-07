@@ -5,11 +5,6 @@ tools: Glob, Grep, Read, Write
 # tools 字段运行时强制（需通过 subagent_type 调用生效，AP-15 fix）。
 # 已知平台 bug（tools 可能被绕过）见 references/known-issues.md，由 PreToolUse Hook 兜底。
 # 插件 Agent 不支持 hooks/mcpServers/permissionMode frontmatter 字段（平台限制）。
-
-  # 角色特化 (lens-perspective): 负责利益相关者视角
-  # 读取被审计项目文件→输出被注入的二阶注入风险（C-4 已 fail-closed）
-  # perspective_id/focus_areas 路径遍历防护已加入白名单
-# 平台级防护依赖 PreToolUse Hook 或 settings.json deny 规则。
 model: sonnet
 disallowedTools: Bash, Edit, Agent
 maxTurns: 30

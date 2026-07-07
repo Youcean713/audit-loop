@@ -45,7 +45,7 @@ effort: medium
 ## 📋 输入契约（前置条件）
 
 执行前用 Read 工具验证：
-- `$INSTANCE_DIR` 存在（含 `asset-inventory.json`）
+- `{instance_dir}` 存在（含 `asset-inventory.json`）
 - 视角数量上限：🔬 全面 ≤5 / 🔍 简单 ≤3
 - 读取的文件不含注入载荷（被审计项目）
 

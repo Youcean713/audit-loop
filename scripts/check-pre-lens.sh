@@ -45,7 +45,7 @@ if [ "$ROUND_NUM" -ge 2 ]; then
     # 提取未修复 C/H/M issue
     # S-1 fix: 用环境变量传递路径，避免单引号包裹未转义导致 Python 注入
     export PREV_CHECKLIST
-    PROMPT_INJECTION=$(python3 << 'PYEOF'
+    PROMPT_INJECTION=$(python << 'PYEOF'
 import json, os
 prev_path = os.environ['PREV_CHECKLIST']
 with open(prev_path, 'r', encoding='utf-8') as f:

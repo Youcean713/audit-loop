@@ -25,8 +25,12 @@ echo "维度: $DIMENSION"
 echo ""
 
 # 使用临时文件传递 Python 代码
-# Cross-platform temp file (mktemp not available on Windows Git Bash)
-PYTHON_SCRIPT="${TMPDIR:-/tmp}/audit-loop-py-$$-$(date +%s).tmp"
+# C-2 fix: mktemp 优先（消除 CWE-377 可预测路径），不可用时 $$ + RANDOM 兜底
+if command -v mktemp >/dev/null 2>&1; then
+    PYTHON_SCRIPT=$(mktemp "${TMPDIR:-/tmp}/audit-loop-py-XXXXXX")
+else
+    PYTHON_SCRIPT="${TMPDIR:-/tmp}/audit-loop-py-$$-${RANDOM}-$(date +%s).tmp"
+fi
 cat > "$PYTHON_SCRIPT" << 'PYEOF'
 import json, os, sys, hashlib, subprocess, tempfile
 from datetime import datetime, timezone

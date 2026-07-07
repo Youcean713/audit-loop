@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # audit-loop Token 档位选择脚本
-# 用途: 根据文件数量选择 Token 守卫档位（与 guardrails.md 阈值同步）
+# 用途: 根据文件数量选择 Token 守卫档位（L-6 fix: 此脚本为运行时唯一真实值来源，修改阈值需同步更新 guardrails.md/SKILL.md/simple-audit.md）
 # 用法: bash scripts/select-token-tier.sh <file_count> <mode>
 # mode: simple | comprehensive
 # 退出码: 0 = 成功, 1 = 参数错误

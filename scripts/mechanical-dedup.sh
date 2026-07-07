@@ -47,12 +47,14 @@ echo "技术透镜: ${#TECH_LENS_FILES[@]}/4 个"
 echo "视角透镜: ${#PERSPECTIVE_FILES[@]} 个"
 echo ""
 
-# Step 2: 使用 Python 执行去重合并
-python -c "
-import json, os, sys
+# Step 2: 使用 Python 执行去重合并（H-4 fix: python -c "..." → heredoc + os.environ）
+export INSTANCE_DIR
+python << 'PYEOF'
+import json, os
 from collections import defaultdict
+from datetime import datetime, timezone
 
-instance_dir = sys.argv[1]
+instance_dir = os.environ['INSTANCE_DIR']
 
 # 读取所有透镜 JSON
 all_findings = []
@@ -164,7 +166,7 @@ final_issues.extend(soft_findings)
 # 生成 checklist
 checklist = {
     'round': 1,
-    'generated_at': '$(date -u +%Y-%m-%dT%H:%M:%SZ)',
+    'generated_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
     'instance_id': os.path.basename(instance_dir),
     'degradations': ['merge-reviewer unavailable — mechanical dedup performed by script'],
     'dedup_summary': {
@@ -197,7 +199,7 @@ if missing_lenses:
 print(f'')
 print(f'✅ 所有软性发现已强制包含（{soft_count} 项）——不再遗漏')
 print(f'输出: {output_path}')
-" "$INSTANCE_DIR"
+PYEOF
 
 EXIT_CODE=$?
 echo ""

@@ -5,12 +5,6 @@ tools: Glob, Grep, Read, Write
 # tools 字段运行时强制（需通过 subagent_type 调用生效，AP-15 fix）。
 # 已知平台 bug（tools 可能被绕过）见 references/known-issues.md，由 PreToolUse Hook 兜底。
 # 插件 Agent 不支持 hooks/mcpServers/permissionMode frontmatter 字段（平台限制）。
-
-  # 角色特化 (merge-reviewer): 负责去重合并
-  # checklist 键名 issues/findings 跨消费者不一致（Q-N3/C-1 已修复）
-  # 视角评估与透镜评估冲突时（≥2 级严重度差异）需 perspective_conflict=true
-  # 阶段编号 A/B/C/D 必须与 merge-reviewer.md 自身定义一致
-# 平台级防护依赖 PreToolUse Hook 或 settings.json deny 规则。
 model: opus
 disallowedTools: Bash, Edit, Agent
 maxTurns: 20
@@ -27,11 +21,11 @@ effort: high
 
 执行本任务前，**必须用 Read 工具**验证以下文件存在且非空（这是硬性契约，不满足时 report incomplete=true 拒绝执行）：
 
-- `$INSTANCE_DIR/lens-security.json`（必须存在，含 `findings` 数组）
-- `$INSTANCE_DIR/lens-arch.json`（同上）
-- `$INSTANCE_DIR/lens-quality.json`（同上）
-- `$INSTANCE_DIR/lens-perf.json`（同上）
-- `$INSTANCE_DIR/lens-perspective-*.json`（0-N 个，至少 1 个）
+- `{instance_dir}/lens-security.json`（必须存在，含 `findings` 数组）
+- `{instance_dir}/lens-arch.json`（同上）
+- `{instance_dir}/lens-quality.json`（同上）
+- `{instance_dir}/lens-perf.json`（同上）
+- `{instance_dir}/lens-perspective-*.json`（0-N 个，至少 1 个）
 
 **契约不满足的处置**：
 - 任一技术 lens 缺失 → incomplete=true，描述"未触发所有技术透镜"

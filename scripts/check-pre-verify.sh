@@ -37,8 +37,10 @@ c_open, h_open, m_open = 0, 0, 0
 c_total, h_total, m_total = 0, 0, 0
 
 for issue in issues:
-    # 改进建议4: 软性发现（P-* 视角建议）不计入 C/H/M 门控（需人工评估，非技术门禁）
-    if str(issue.get('id', '')).startswith('P-'):
+    # M-5 fix: 软性发现统一筛选——P-前缀 + type=soft（防御性断言: P-* 含 severity 时警告）
+    if str(issue.get('id', '')).startswith('P-') and issue.get('type', '') == 'soft':
+        if 'severity' in issue:
+            print(f'WARNING: P-* soft finding has severity={issue.get("severity")} for {issue.get("id")} — data inconsistency, skipping gating', file=__import__('sys').stderr)
         continue
     sev = issue.get('severity', '').lower()
     status = issue.get('status', 'open')

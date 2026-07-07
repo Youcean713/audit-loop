@@ -5,12 +5,6 @@ tools: Glob, Grep, Read, Write
 # tools 字段运行时强制（需通过 subagent_type 调用生效，AP-15 fix）。
 # 已知平台 bug（tools 可能被绕过）见 references/known-issues.md，由 PreToolUse Hook 兜底。
 # 插件 Agent 不支持 hooks/mcpServers/permissionMode frontmatter 字段（平台限制）。
-
-  # 角色特化 (lens-performance): 负责 Token 效率
-  # haiku 处理需深度阅读多 JSON 的复杂任务易超时（AP-9 已知）
-  # 视角透镜应最低使用 sonnet（lens-config.md 已有建议）
-  # 全量加载 reference 文件浪费 Token，应按需分段加载
-# 平台级防护依赖 PreToolUse Hook 或 settings.json deny 规则。
 model: haiku
 disallowedTools: Edit, Agent
 maxTurns: 25
@@ -39,7 +33,7 @@ effort: medium
 ## 📋 输入契约（前置条件）
 
 执行前用 Read 工具验证：
-- `$INSTANCE_DIR/asset-inventory.json` 存在
+- `{instance_dir}/asset-inventory.json` 存在
 - 审计范围字符串不含反引号 / `system:` / `assistant:` 等注入特征
 
 ## 📤 输出契约（后置自检）

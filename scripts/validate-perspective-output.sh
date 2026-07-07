@@ -23,18 +23,19 @@ echo "文件: $JSON_PATH"
 echo ""
 
 set +e
-python -c "
-import json, sys, re, unicodedata
+export JSON_PATH
+python << 'PYEOF'
+import json, os, re, unicodedata
 
-with open(sys.argv[1], 'r', encoding='utf-8') as f:
+with open(os.environ['JSON_PATH'], 'r', encoding='utf-8') as f:
     data = json.load(f)
 
 failures = []
 
 # 角色切换短语
 role_switch = ['system:', 'assistant:', 'user:', 'human:', '[INST]', '[SYSTEM]', '<|im_start|>', '<system>', '<script>', '<!--']
-# 通用 prompt 注入短语
-injection_phrases = ['ignore previous', 'disregard all prior', 'all previous instructions', 'instead output', 'new instructions', 'forget above', 'override', 'bypass', 'output all secrets', 'pretend you are', 'do not audit', 'skip audit']
+# 通用 prompt 注入短语（H-3 fix: 移除过于宽泛的词 'override'/'bypass'）
+injection_phrases = ['ignore previous', 'disregard all prior', 'all previous instructions', 'instead output', 'new instructions', 'forget above', 'output all secrets', 'pretend you are', 'do not audit', 'skip audit', 'as a developer', 'as an ai', 'you are now']
 
 def check_string(value, field_name, allow_chinese=False):
     \"\"\"检查单个字符串字段\"\"\"
@@ -42,7 +43,9 @@ def check_string(value, field_name, allow_chinese=False):
         return
     # NFKC 标准化
     normalized = unicodedata.normalize('NFKC', value)
-    lower = normalized.lower()
+    # H-3 fix: 空白字符归一化——合并连续空白/制表符/换行为单个空格，防空格/Tab 绕过
+    collapsed = re.sub(r'\s+', ' ', normalized).strip()
+    lower = collapsed.lower()
 
     # L-9 fix: 收集所有注入模式（原首匹配即 return 隐藏后续模式，降低盲区收割精度）
     # 黑名单: 角色切换
@@ -139,7 +142,7 @@ if failures:
 else:
     print('✅ 全部视角输出通过安全验证')
     sys.exit(0)
-" "$JSON_PATH"
+PYEOF
 
 EXIT_CODE=$?
 set -e
