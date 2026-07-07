@@ -1,0 +1,45 @@
+{
+  "description": "audit-loop 三层 Hook 强制执行：PreToolUse（Agent spawn 前置条件）+ SubagentStop（Agent 输出验证）+ Stop（审计完整性门控）",
+
+  "PreToolUse": [
+    {
+      "matcher": "Agent",
+      "description": "在 spawn 任何 audit-loop Agent 前验证前置条件",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-agent-spawn.sh\"",
+          "timeout": 15
+        }
+      ]
+    }
+  ],
+
+  "SubagentStop": [
+    {
+      "matcher": "",
+      "description": "任何子 Agent 完成后验证输出产品",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-agent-output.sh\"",
+          "timeout": 15
+        }
+      ]
+    }
+  ],
+
+  "Stop": [
+    {
+      "matcher": "",
+      "description": "防止审计未完成时退出主会话",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-audit-complete.sh\"",
+          "timeout": 10
+        }
+      ]
+    }
+  ]
+}

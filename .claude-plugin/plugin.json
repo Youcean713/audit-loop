@@ -1,0 +1,17 @@
+{
+  "name": "audit-loop",
+  "version": "2.0.0",
+  "description": "多模型多维度代码审计循环 — 审计发现 → 修复 → 验证 → 自动迭代，支持简单/全面双模式，含 SubagentStop/PreToolUse/Stop 三层 Hook 强制执行",
+  "author": {
+    "name": "Youcean713",
+    "url": "https://github.com/Youcean713/claude_config"
+  },
+  "homepage": "https://github.com/Youcean713/claude_config",
+  "repository": "https://github.com/Youcean713/claude_config",
+  "license": "MIT",
+  "keywords": ["audit", "security", "code-review", "multi-agent", "owasp", "compliance"],
+  "skills": "./",
+  "agents": "./agents/",
+  "commands": "./commands/",
+  "hooks": ["./hooks/hooks.json"]
+}
