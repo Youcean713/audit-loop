@@ -11,10 +11,7 @@
     {
       "name": "audit-loop",
       "description": "多模型多维度代码审计循环 — 支持简单(8-15min)和全面(20-25min)双模式，SubagentStop/PreToolUse/Stop 三层 Hook 强制执行",
-      "source": {
-        "source": "url",
-        "url": "http://gitlab.hopechart.com/wenxiang.you/audit-loop.git"
-      }
+      "source": "http://gitlab.hopechart.com/wenxiang.you/audit-loop.git"
     }
   ]
 }
