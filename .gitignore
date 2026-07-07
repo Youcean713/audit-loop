@@ -4,3 +4,13 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# 审计运行时产物（实例目录、缓存、快照）
+.claude/cache/
+.claude/agent-memory/
+
+# Hook 运行时状态文件（编排者与 Hook 间共享上下文，每次审计重置）
+.audit-state.json
+
+# PreCompact 快照（运行时生成）
+pre-compact-snapshot.json

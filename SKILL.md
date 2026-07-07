@@ -176,10 +176,10 @@ Round 2/3: 验证+增量扫描 → C+H=0? 🟢结束 : 终裁(确认/降级/撤�
 
 详细步骤、Agent prompt 模板、透镜配置见下方引用文件：
 - **简单审计** 执行前 → 读 `references/simple-audit.md` + `references/lens-config.md`「简单审计 Agent 配置」节
-- **全面审计** Round 1 执行前 → 读 `references/round-details.md` + `references/lens-config.md`
+- **全面审计** Round 1 执行前 → **立即 Read** `references/round-1.md` + `references/lens-config.md`（P2-1: 已按阶段拆分）
 - 遇到故障时 → 读 `references/guardrails.md`
-- Round 2/3 时加载 `references/round-details.md`（一次性全量加载，按章节执行）
-> 以上文件为单体文件，编排者一次性全量读取但在执行时仅关注当前阶段对应章节。后续优化方向：将大文件按阶段拆分为独立 reference（如 round-details-phase1.md / phase2.md），实现按需分段加载。
+- Round 2/3 时**立即 Read** `references/round-2-3.md`（P2-1: 已按阶段拆分，按需加载省 token）
+> P2-1 已执行拆分：round-details.md 现为索引，按阶段拆为 round-1.md / fix-phase.md / round-2-3.md。编排者按需 Read 对应阶段。
 
 ## Step 0: 审计范围确认（两种模式共用）
 
@@ -194,8 +194,8 @@ Round 2/3: 验证+增量扫描 → C+H=0? 🟢结束 : 终裁(确认/降级/撤�
    > 🆕 **Hook 集成（Plugin v2.0.0）**: 实例初始化完成后，立即写入审计状态文件供三层 Hook（PreToolUse/SubagentStop/Stop）读取：
    > ```bash
    > # 编排者: 写入审计状态文件（Hook 与编排者间的共享上下文）
-   > # 路径约定: ${HOME}/.claude/plugins/audit-loop/.audit-state.json
-   > PLUGIN_ROOT="${HOME}/.claude/plugins/audit-loop"
+   > # 路径约定: ${CLAUDE_PLUGIN_ROOT}/.audit-state.json（自动解析为插件根目录）
+   > PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${HOME}/.claude/skills/audit-loop}"
    > mkdir -p "$PLUGIN_ROOT"
    > echo "{\"instance_dir\":\"$INSTANCE_DIR\",\"phase\":\"init\",\"round\":1,\"active\":true,\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > "${PLUGIN_ROOT}/.audit-state.json"
    > ```
@@ -275,7 +275,7 @@ Agent(
 
 ## 🔬 Round 1: 全面审计
 
-按 `references/round-details.md` 中的 Round 1 步骤执行。核心流程：
+按 `references/round-1.md` 中的 Round 1 步骤执行。核心流程：
 
 - **Step 1（阶段 1）**: 并行 spawn 4 个特化 Lens Agent（安全=fable/架构=sonnet/质量=sonnet/性能=haiku），prompt 模板见 `agents/lens-*.md`，配置见 `references/lens-config.md`
   - 🆕 **AP-16 修复**: 编排者构造透镜 prompt 时，必须注入上一轮的未修复 issue 列表（运行 `bash scripts/check-pre-lens.sh $INSTANCE_DIR $round_num` 自动生成注入文本）。透镜必须重新验证这些 issue 是否仍然存在，已修复的在 findings 中标注"上轮问题已自然修复"，仍然存在的继续上报。
@@ -320,6 +320,7 @@ Round 1 审计完成。共发现 X Critical + Y High + Z Medium + W Suggestion +
 > 用户选择前不执行任何修改。选择「继续修复」后全自动推进至退出判断。
 > 选择「停止」后跳过「修复阶段」和「Round 2/3」，直接进入「企业级多角色输出」节。
 > 选择「停止」时，报告标注"仅审计未修复"，SARIF `properties.audit-loop:fix_phase` = `"skipped"`，trend.json 中 `fix_success_rate` 为 `null`。
+> 🚨 **AP-13 fix**: 编排者必须等待用户在对话中**明确输入文字**（如"继续修复"/"停止"/"仅报告"）后再行动。**禁止将 Stop Hook 的拦截输出推断为用户意图**——Hook 拦截仅表示会话退出被阻止，不代表用户选择了继续修复。若用户长时间未回复（>5min），可重新输出选择提示，但不可自动推进。
 
 ---
 
@@ -370,7 +371,7 @@ Round 1 审计完成。共发现 X Critical + Y High + Z Medium + W Suggestion +
 
 脚本覆盖 5 项检查：数值声称一致性、模型列一致性、占位符一致性、引用有效性、修复范围校验。**此步骤不可跳过，不可委托 Agent。**
 
-> 完整修复规则（修复引入错误处理、回滚策略）见 `references/round-details.md`「修复阶段」节。
+> 完整修复规则（修复引入错误处理、回滚策略）见 `references/fix-phase.md`。
 
 ---
 
@@ -454,7 +455,7 @@ Mode C 结果
 
 运行 `bash scripts/compute-exit-verdict.sh $INSTANCE_DIR [prev_c_plus_h]`。脚本执行 8 条决策树规则，输出裁决 + 退出码 + `exit-verdict.json`。
 
-> 详细 Round 2/3 步骤、Agent prompt 模板见 `references/round-details.md`。
+> 详细 Round 2/3 步骤、Agent prompt 模板见 `references/round-2-3.md`。
 > 收敛自适应策略的设计依据（第二审计员效应、变异测试哲学）见 `references/THREAT-MODEL.md`「收敛自适应策略」节。
 
 ## 退出判断（企业级门控裁决）
@@ -473,7 +474,9 @@ Round 2/3 终裁后
   │
   ├─ 总 C+H = 0（含 persisting + blast-radius New）
   │   ├─ 存在 requires_human 的 Critical → 🟡 CAUTION (exit 0)（AP-14 fix: 不可 SHIP）
-  │   └─ 无 requires_human 的 Critical → 🟢 SHIP (exit 0) → 通过，结束
+  │   ├─ 存在未处理的 Medium（status 非 fix_attempted/requires_human）→ 🚨 AP-14 fix:
+  │   │   先处理 Medium（修复或标记 requires_human），再重新裁决。不可直接 SHIP。
+  │   └─ 无 requires_human 的 Critical 且所有 Medium 已处理 → 🟢 SHIP (exit 0) → 通过，结束
   │
   ├─ C+H > 0 且 较上一轮无减少（持平或增加）
   │   └─ 🔴 BLOCK (exit 2) → 修复无效，终止
@@ -616,7 +619,7 @@ Round 2/3 终裁后
 
 ## 输出模板
 
-最终报告使用 `references/round-details.md` 中「差异对比与报告」节定义的输出模板。企业级扩展模板见 `references/enterprise-output.md`。
+最终报告使用 `references/round-2-3.md` 中「差异对比与报告」节定义的输出模板。企业级扩展模板见 `references/enterprise-output.md`。
 
 
 ## 完整示例
