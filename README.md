@@ -5,8 +5,8 @@
 ## 安装
 
 ```bash
-# 1. 添加市场
-/plugin marketplace add https://gitlab.hopechart.com/wenxiang.you/audit-loop
+# 1. 添加市场（SSH）
+/plugin marketplace add git@gitlab.hopechart.com:wenxiang.you/audit-loop.git
 
 # 2. 安装插件
 /plugin install audit-loop@audit-loop-marketplace
@@ -19,15 +19,15 @@
 ```json
 {
   "extraKnownMarketplaces": {
-    "audit-loop": {
+    "audit-loop-marketplace": {
       "source": {
         "source": "git",
-        "url": "https://gitlab.hopechart.com/wenxiang.you/audit-loop.git"
+        "url": "git@gitlab.hopechart.com:wenxiang.you/audit-loop.git"
       }
     }
   },
   "enabledPlugins": {
-    "audit-loop@audit-loop": true
+    "audit-loop@audit-loop-marketplace": true
   }
 }
 ```
